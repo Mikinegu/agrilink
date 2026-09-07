@@ -45,6 +45,14 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Normalize /api prefix for Vercel serverless functions
+app.use((req, res, next) => {
+  if (!req.url.startsWith('/api') && !req.url.startsWith('/_')) {
+    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+  }
+  next();
+});
+
 // In-memory active user simulation for multi-role preview navigation
 let currentUserId = 1; // Default to Bekele Tadesse (Farmer) or switchable in UI
 
@@ -4067,4 +4075,10 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start the local listener if not running inside Vercel serverless functions
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export { app };
+export default app;

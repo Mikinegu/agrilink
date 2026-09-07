@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import * as dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { db, initDatabase } from './src/db/index.ts';
@@ -47,7 +46,10 @@ app.use(express.json());
 
 // Normalize /api prefix for Vercel serverless functions
 app.use((req, res, next) => {
-  if (!req.url.startsWith('/api') && !req.url.startsWith('/_')) {
+  const matched = (req.headers['x-matched-path'] as string) || (req.headers['x-forwarded-uri'] as string);
+  if (matched && matched.startsWith('/api')) {
+    req.url = matched;
+  } else if (!req.url.startsWith('/api') && !req.url.startsWith('/_')) {
     req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
   }
   next();
@@ -360,15 +362,17 @@ const requireRole = (...allowedRoles: string[]) => {
   };
 };
 
-// Initialize database tables and auto-seed on start
-(async () => {
-  try {
-    await initDatabase();
-    await seedDatabase(false);
-  } catch (err: any) {
-    console.log('Database startup notice:', err.message);
-  }
-})();
+// Initialize database tables and auto-seed on local start (skip during Vercel serverless cold starts)
+if (!process.env.VERCEL) {
+  (async () => {
+    try {
+      await initDatabase();
+      await seedDatabase(false);
+    } catch (err: any) {
+      console.log('Database startup notice:', err?.message);
+    }
+  })();
+}
 
 // ==========================================
 // 1. HEALTH & SEED API
@@ -4054,6 +4058,7 @@ app.get('/api/escrow/ledger', async (req: express.Request, res: express.Response
 // ==========================================
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: {
         middlewareMode: true,

@@ -1,0 +1,10 @@
+{
+  "name": "AgriLink",
+  "description": "Connecting Farmers, Markets, Finance, and Logistics across Ethiopia and Africa with a real-time agricultural marketplace and supply chain platform.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

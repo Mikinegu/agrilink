@@ -98,6 +98,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
+  // Bootstrap: resolve auth state on first load
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
+
   // Listen for Supabase email confirmation link redirect and session changes
   useEffect(() => {
     if (!isSupabaseConfigured()) return;

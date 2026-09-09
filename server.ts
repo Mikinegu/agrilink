@@ -45,11 +45,25 @@ const PORT = 3000;
 app.use(express.json());
 
 // Normalize /api prefix for Vercel serverless functions
+// IMPORTANT: Skip Vite dev server asset paths so HMR and JS/CSS assets are served correctly
 app.use((req, res, next) => {
   const matched = (req.headers['x-matched-path'] as string) || (req.headers['x-forwarded-uri'] as string);
   if (matched && matched.startsWith('/api')) {
     req.url = matched;
-  } else if (!req.url.startsWith('/api') && !req.url.startsWith('/_')) {
+    return next();
+  }
+  // Skip Vite internal paths, static assets, and the SPA root
+  const isViteAsset =
+    req.url.startsWith('/@') ||
+    req.url.startsWith('/src') ||
+    req.url.startsWith('/node_modules') ||
+    req.url.startsWith('/__') ||
+    req.url.startsWith('/_');
+  if (isViteAsset || req.url === '/') {
+    return next();
+  }
+  // Only prepend /api for non-API paths that aren't file assets
+  if (!req.url.startsWith('/api')) {
     req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
   }
   next();

@@ -80,8 +80,8 @@ export const HomePage: React.FC<HomePageProps> = ({
               </span>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-emerald-600 transition-colors" />
             </div>
-            <h3 className="font-bold text-sm text-zinc-900">Fresh Produce Market</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">Direct farm harvests in ETB</p>
+            <h3 className="font-bold text-sm text-zinc-900">{t.home.quickProduceTitle}</h3>
+            <p className="text-xs text-zinc-500 mt-0.5">{t.home.quickProduceDesc}</p>
           </button>
 
           <button
@@ -94,8 +94,8 @@ export const HomePage: React.FC<HomePageProps> = ({
               </span>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-colors" />
             </div>
-            <h3 className="font-bold text-sm text-zinc-900">B2B Procurement</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">Bulk RFQs & weekly supply</p>
+            <h3 className="font-bold text-sm text-zinc-900">{t.home.quickProcurementTitle}</h3>
+            <p className="text-xs text-zinc-500 mt-0.5">{t.home.quickProcurementDesc}</p>
           </button>
 
           <button
@@ -108,8 +108,8 @@ export const HomePage: React.FC<HomePageProps> = ({
               </span>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-amber-600 transition-colors" />
             </div>
-            <h3 className="font-bold text-sm text-zinc-900">Seeds & Equipment</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">Certified farm inputs & leasing</p>
+            <h3 className="font-bold text-sm text-zinc-900">{t.home.quickInputsTitle}</h3>
+            <p className="text-xs text-zinc-500 mt-0.5">{t.home.quickInputsDesc}</p>
           </button>
 
           <button
@@ -122,48 +122,23 @@ export const HomePage: React.FC<HomePageProps> = ({
               </span>
               <ArrowRight className="h-4 w-4 text-zinc-400 group-hover:text-teal-600 transition-colors" />
             </div>
-            <h3 className="font-bold text-sm text-zinc-900">Agri-Credit & Escrow</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">Awash Bank backed financing</p>
+            <h3 className="font-bold text-sm text-zinc-900">{t.home.quickFinanceTitle}</h3>
+            <p className="text-xs text-zinc-500 mt-0.5">{t.home.quickFinanceDesc}</p>
           </button>
         </div>
 
-        {/* Featured Flagship: AI Agri-Intelligence Command Center & Live Radar Banner
-        <div className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950 via-zinc-950 to-teal-950 p-6 sm:p-8 text-white border border-emerald-800/60 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <Sparkles className="h-4 w-4" /> Next-Gen AI Feature
-            </div>
-            <h3 className="text-xl sm:text-2xl font-black text-white">
-              AI Agri-Intelligence Command Center & Cold-Chain Radar
-            </h3>
-            <p className="text-xs sm:text-sm text-emerald-200/80 leading-relaxed">
-              Multimodal plant disease diagnostics powered by Gemini Vision, live Ethiopian cold-chain telemetry radar, real-time ECX price oracle, and smart farm yield simulators.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-            <button
-              onClick={() => onNavigate('intelligence')}
-              className="px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs sm:text-sm cursor-pointer transition-all shadow-lg flex items-center justify-center gap-2 group"
-            >
-              <span>Launch AI Command Center</span>
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-        </div> */}
         {/* Featured Flagship: B2B Agricultural Salvage Exchange & Distressed Harvest Engine */}
         <div className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-r from-amber-950 via-zinc-950 to-emerald-950 p-6 sm:p-8 text-white border border-amber-800/60 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
               <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping"></span>
-              <span className="text-amber-400 font-black">⚡</span> Enterprise B2B Salvage Exchange
+              <span className="text-amber-400 font-black">⚡</span> {t.home.salvageBadge}
             </div>
             <h3 className="text-xl sm:text-2xl font-black text-white">
-              Distressed Harvest Discount Engine & Cold-Chain Dispatch
+              {t.home.salvageTitle}
             </h3>
             <p className="text-xs sm:text-sm text-amber-200/80 leading-relaxed">
-              Industrial food processor sourcing (Roma Tomatoes, San Marzano, Valencia Oranges), dynamic 3-way discount negotiation, live reefer telematics, and tri-party escrow QA disbursement.
+              {t.home.salvageSubtitle}
             </p>
           </div>
 
@@ -172,7 +147,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               onClick={() => onNavigate('salvage')}
               className="px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs sm:text-sm cursor-pointer transition-all shadow-lg flex items-center justify-center gap-2 group"
             >
-              <span>Enter Salvage Exchange</span>
+              <span>{t.home.salvageButton}</span>
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
@@ -183,13 +158,13 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full inline-block">
-            Integrated Value Chain
+            {t.home.pillarsBadge}
           </span>
           <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 mt-2">
-            Modern Agriculture
+            {t.home.pillarsTitle}
           </h2>
           <p className="text-xs sm:text-sm text-zinc-500 mt-1">
-            Empowering Ethiopia's horticultural, grain, and commercial farm sectors with digital infrastructure
+            {t.home.pillarsSubtitle}
           </p>
         </div>
 
@@ -203,13 +178,13 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="h-11 w-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Sprout className="h-5 w-5" />
               </div>
-              <h3 className="font-bold text-base text-zinc-900 mb-1.5">Direct Farm Payouts</h3>
+              <h3 className="font-bold text-base text-zinc-900 mb-1.5">{t.home.pillarFarmersTitle}</h3>
               <p className="text-xs text-zinc-600 leading-relaxed">
-                List harvests directly for hotels, supermarkets, and processors. Receive instant mobile payouts via Telebirr or CBE Birr.
+                {t.home.pillarFarmersDesc}
               </p>
             </div>
             <span className="text-xs font-bold text-emerald-700 mt-4 flex items-center gap-1">
-              Open Farmer Portal <ArrowRight className="h-3.5 w-3.5" />
+              {t.home.pillarFarmersLink} <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </div>
 
@@ -222,13 +197,13 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="h-11 w-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Building2 className="h-5 w-5" />
               </div>
-              <h3 className="font-bold text-base text-zinc-900 mb-1.5">Commercial Procurement</h3>
+              <h3 className="font-bold text-base text-zinc-900 mb-1.5">{t.home.pillarBuyersTitle}</h3>
               <p className="text-xs text-zinc-600 leading-relaxed">
-                Submit RFQ bulk orders, lock guaranteed delivery schedules, and source certified produce with full batch traceability.
+                {t.home.pillarBuyersDesc}
               </p>
             </div>
             <span className="text-xs font-bold text-blue-700 mt-4 flex items-center gap-1">
-              View B2B Quotes <ArrowRight className="h-3.5 w-3.5" />
+              {t.home.pillarBuyersLink} <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </div>
 
@@ -241,13 +216,13 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="h-11 w-11 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Truck className="h-5 w-5" />
               </div>
-              <h3 className="font-bold text-base text-zinc-900 mb-1.5">Cold-Chain Logistics</h3>
+              <h3 className="font-bold text-base text-zinc-900 mb-1.5">{t.home.pillarLogisticsTitle}</h3>
               <p className="text-xs text-zinc-600 leading-relaxed">
-                Aggregation hubs with pre-cooling, lot inspection, and refrigerated GPS-tracked transit from farm-gate to city terminals.
+                {t.home.pillarLogisticsDesc}
               </p>
             </div>
             <span className="text-xs font-bold text-purple-700 mt-4 flex items-center gap-1">
-              Explore Logistics Grid <ArrowRight className="h-3.5 w-3.5" />
+              {t.home.pillarLogisticsLink} <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </div>
 
@@ -260,13 +235,13 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="h-11 w-11 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Landmark className="h-5 w-5" />
               </div>
-              <h3 className="font-bold text-base text-zinc-900 mb-1.5">Agri-Credit & Escrow</h3>
+              <h3 className="font-bold text-base text-zinc-900 mb-1.5">{t.home.pillarFinanceTitle}</h3>
               <p className="text-xs text-zinc-600 leading-relaxed">
-                Working capital and input financing based on verified harvest history, backed by Awash Bank and smart escrow security.
+                {t.home.pillarFinanceDesc}
               </p>
             </div>
             <span className="text-xs font-bold text-teal-700 mt-4 flex items-center gap-1">
-              Open Banking Desk <ArrowRight className="h-3.5 w-3.5" />
+              {t.home.pillarFinanceLink} <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </div>
         </div>

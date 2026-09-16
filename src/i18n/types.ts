@@ -193,6 +193,80 @@ export interface TranslationDictionary {
     popularLabel: string;
     popularKeywords: Array<{ label: string; query: string }>;
     allCategories: string;
+    categoriesTitle: string;
+    categoriesCount: string;
+    categoryNames: Record<string, string>;
+    subcategoriesLabel: string;
+    allTypes: string;
+    allPrefix: string;
+    targetBuyerLabel: string;
+    targetBuyerChannels: {
+      all: string;
+      processor: string;
+      investor: string;
+      buyer: string;
+    };
+    filtersLabel: string;
+    productTypes: {
+      all: string;
+      freshFood: string;
+      grainCereal: string;
+      pulseLegume: string;
+      rootTuber: string;
+      vegetable: string;
+      fruit: string;
+      coffee: string;
+      spiceHerb: string;
+      oilseed: string;
+      honey: string;
+      dairyPoultry: string;
+      livestockMeat: string;
+      animalFeed: string;
+      floriculture: string;
+      processedFood: string;
+    };
+    qualityGrades: {
+      all: string;
+      grade1Export: string;
+      grade1Local: string;
+      grade2Commercial: string;
+      processingGrade: string;
+      premium: string;
+    };
+    regions: {
+      all: string;
+      oromia: string;
+      addisAbaba: string;
+      sidama: string;
+      amhara: string;
+      snnpr: string;
+      tigray: string;
+      somali: string;
+      afar: string;
+      direDawa: string;
+    };
+    availability: {
+      all: string;
+      availableNow: string;
+      freshDaily: string;
+      harvestingNextWeek: string;
+      preOrder: string;
+      forwardContract: string;
+    };
+    checkboxes: {
+      organic: string;
+      verifiedProducer: string;
+      liveAnimal: string;
+    };
+    sortByLabel: string;
+    sortOptions: {
+      recommended: string;
+      newest: string;
+      priceAsc: string;
+      priceDesc: string;
+      rating: string;
+      harvestRecent: string;
+    };
     filterByGrade: string;
     filterByRegion: string;
     addToCart: string;

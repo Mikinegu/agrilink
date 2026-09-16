@@ -236,9 +236,9 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
-            <Boxes className="h-3.5 w-3.5 text-emerald-700" /> Main Food & Agricultural Categories
+            <Boxes className="h-3.5 w-3.5 text-emerald-700" /> {t.marketplace.categoriesTitle}
           </span>
-          <span className="text-xs text-zinc-500 font-semibold">{categories.length} Categories</span>
+          <span className="text-xs text-zinc-500 font-semibold">{categories.length} {t.marketplace.categoriesCount}</span>
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
@@ -254,7 +254,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
             }`}
           >
             <Boxes className="h-4 w-4" />
-            <span>All Categories</span>
+            <span>{t.marketplace.allCategories}</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 ml-1">
               {products.length}
             </span>
@@ -262,6 +262,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
 
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.slug;
+            const localizedCatName = t.marketplace.categoryNames?.[cat.slug] || cat.name;
             return (
               <button
                 key={cat.id}
@@ -276,7 +277,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
                 }`}
               >
                 {getCategoryIcon(cat.slug || cat.icon)}
-                <span>{cat.name}</span>
+                <span>{localizedCatName}</span>
                 {cat.productCount !== undefined && (
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${isSelected ? 'bg-emerald-700 text-white' : 'bg-zinc-100 text-zinc-600'}`}>
                     {cat.productCount}
@@ -293,7 +294,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
         <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3 mb-6">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
             <span className="text-[11px] font-extrabold text-emerald-900 uppercase shrink-0 mr-1 flex items-center gap-1">
-              <Layers className="h-3 w-3 text-emerald-700" /> Subcategories:
+              <Layers className="h-3 w-3 text-emerald-700" /> {t.marketplace.subcategoriesLabel}
             </span>
             <button
               onClick={() => setSelectedSubcategory('all')}
@@ -303,7 +304,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
                   : 'bg-white text-emerald-900 border border-emerald-200 hover:bg-emerald-100/60'
               }`}
             >
-              All {activeCatObject ? activeCatObject.name : 'Types'}
+              {t.marketplace.allPrefix} {activeCatObject ? (t.marketplace.categoryNames?.[activeCatObject.slug] || activeCatObject.name) : t.marketplace.allTypes}
             </button>
             {currentSubcategories.map((sub) => {
               const isSubSelected = selectedSubcategory === sub.name || selectedSubcategory === sub.slug;
@@ -328,13 +329,13 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
       {/* Target Buyer Channel Classifier Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
         <span className="text-[11px] font-bold text-zinc-500 uppercase shrink-0 mr-1 flex items-center gap-1">
-          <Sparkles className="h-3.5 w-3.5 text-emerald-700" /> Target Buyer Channel:
+          <Sparkles className="h-3.5 w-3.5 text-emerald-700" /> {t.marketplace.targetBuyerLabel}
         </span>
         {[
-          { id: 'ALL', label: 'All Channels', icon: Globe },
-          { id: 'PROCESSOR', label: 'Food Processors & Mills', icon: Factory },
-          { id: 'INVESTOR', label: 'Agri-Investors & Exporters', icon: Briefcase },
-          { id: 'BUYER', label: 'Supermarkets & Urban Grocers', icon: Store },
+          { id: 'ALL', label: t.marketplace.targetBuyerChannels.all, icon: Globe },
+          { id: 'PROCESSOR', label: t.marketplace.targetBuyerChannels.processor, icon: Factory },
+          { id: 'INVESTOR', label: t.marketplace.targetBuyerChannels.investor, icon: Briefcase },
+          { id: 'BUYER', label: t.marketplace.targetBuyerChannels.buyer, icon: Store },
         ].map((chan) => {
           const Icon = chan.icon;
           const isSelected = selectedTargetBuyer === chan.id;
@@ -359,7 +360,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
       <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-2xs mb-8 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex items-center gap-1 text-xs text-zinc-500 font-black uppercase">
-            <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" /> Filters:
+            <SlidersHorizontal className="h-3.5 w-3.5 text-emerald-700" /> {t.marketplace.filtersLabel}
           </div>
 
           {/* Product Type Filter */}
@@ -368,22 +369,22 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
             onChange={(e) => setSelectedProductType(e.target.value)}
             className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-emerald-600"
           >
-            <option value="all">All Commodity Types</option>
-            <option value="FRESH_FOOD">Fresh Food & Produce</option>
-            <option value="GRAIN_CEREAL">Grains & Cereals</option>
-            <option value="PULSE_LEGUME">Pulses & Legumes</option>
-            <option value="ROOT_TUBER">Roots & Tubers</option>
-            <option value="VEGETABLE">Vegetables</option>
-            <option value="FRUIT">Fruits</option>
-            <option value="COFFEE">Coffee (Export/Domestic)</option>
-            <option value="SPICE_HERB">Spices & Herbs</option>
-            <option value="OILSEED">Oilseeds</option>
-            <option value="HONEY">Honey & Apiculture</option>
-            <option value="DAIRY_POULTRY">Dairy & Poultry</option>
-            <option value="LIVESTOCK_MEAT">Meat & Livestock</option>
-            <option value="ANIMAL_FEED">Animal Feed & Forage</option>
-            <option value="FLORICULTURE">Floriculture & Specialty</option>
-            <option value="PROCESSED_FOOD">Processed & Packaged</option>
+            <option value="all">{t.marketplace.productTypes.all}</option>
+            <option value="FRESH_FOOD">{t.marketplace.productTypes.freshFood}</option>
+            <option value="GRAIN_CEREAL">{t.marketplace.productTypes.grainCereal}</option>
+            <option value="PULSE_LEGUME">{t.marketplace.productTypes.pulseLegume}</option>
+            <option value="ROOT_TUBER">{t.marketplace.productTypes.rootTuber}</option>
+            <option value="VEGETABLE">{t.marketplace.productTypes.vegetable}</option>
+            <option value="FRUIT">{t.marketplace.productTypes.fruit}</option>
+            <option value="COFFEE">{t.marketplace.productTypes.coffee}</option>
+            <option value="SPICE_HERB">{t.marketplace.productTypes.spiceHerb}</option>
+            <option value="OILSEED">{t.marketplace.productTypes.oilseed}</option>
+            <option value="HONEY">{t.marketplace.productTypes.honey}</option>
+            <option value="DAIRY_POULTRY">{t.marketplace.productTypes.dairyPoultry}</option>
+            <option value="LIVESTOCK_MEAT">{t.marketplace.productTypes.livestockMeat}</option>
+            <option value="ANIMAL_FEED">{t.marketplace.productTypes.animalFeed}</option>
+            <option value="FLORICULTURE">{t.marketplace.productTypes.floriculture}</option>
+            <option value="PROCESSED_FOOD">{t.marketplace.productTypes.processedFood}</option>
           </select>
 
           {/* Quality Grade Select */}
@@ -392,12 +393,12 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
             onChange={(e) => setSelectedGrade(e.target.value)}
             className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-emerald-600"
           >
-            <option value="all">All Quality Grades</option>
-            <option value="GRADE_1_EXPORT">Grade 1 Export Standard</option>
-            <option value="GRADE_1_LOCAL">Grade 1 Local Standard</option>
-            <option value="GRADE_2_COMMERCIAL">Grade 2 Commercial</option>
-            <option value="PROCESSING_GRADE">Processing & Industrial Grade</option>
-            <option value="PREMIUM">Premium Specialty</option>
+            <option value="all">{t.marketplace.qualityGrades.all}</option>
+            <option value="GRADE_1_EXPORT">{t.marketplace.qualityGrades.grade1Export}</option>
+            <option value="GRADE_1_LOCAL">{t.marketplace.qualityGrades.grade1Local}</option>
+            <option value="GRADE_2_COMMERCIAL">{t.marketplace.qualityGrades.grade2Commercial}</option>
+            <option value="PROCESSING_GRADE">{t.marketplace.qualityGrades.processingGrade}</option>
+            <option value="PREMIUM">{t.marketplace.qualityGrades.premium}</option>
           </select>
 
           {/* Region Select */}
@@ -406,16 +407,16 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
             onChange={(e) => setSelectedRegion(e.target.value)}
             className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-emerald-600"
           >
-            <option value="all">All Origin Regions</option>
-            <option value="Oromia">Oromia (Wonji, Ziway, Bale, Jimma, Nekemte)</option>
-            <option value="Addis Ababa">Addis Ababa Wholesale Corridor</option>
-            <option value="Sidama">Sidama (Hawassa, Yirgacheffe Basin)</option>
-            <option value="Amhara">Amhara (Bahir Dar, Gojjam, Gondar)</option>
-            <option value="SNNPR">SNNPR / South Ethiopia (Welayta, Chencha)</option>
-            <option value="Tigray">Tigray (Mekelle, Raya Valley)</option>
-            <option value="Somali">Somali (Jijiga, Gode)</option>
-            <option value="Afar">Afar (Awash Basin)</option>
-            <option value="Dire Dawa">Dire Dawa Trade Gateway</option>
+            <option value="all">{t.marketplace.regions.all}</option>
+            <option value="Oromia">{t.marketplace.regions.oromia}</option>
+            <option value="Addis Ababa">{t.marketplace.regions.addisAbaba}</option>
+            <option value="Sidama">{t.marketplace.regions.sidama}</option>
+            <option value="Amhara">{t.marketplace.regions.amhara}</option>
+            <option value="SNNPR">{t.marketplace.regions.snnpr}</option>
+            <option value="Tigray">{t.marketplace.regions.tigray}</option>
+            <option value="Somali">{t.marketplace.regions.somali}</option>
+            <option value="Afar">{t.marketplace.regions.afar}</option>
+            <option value="Dire Dawa">{t.marketplace.regions.direDawa}</option>
           </select>
 
           {/* Freshness Status Filter */}
@@ -424,12 +425,12 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
             onChange={(e) => setSelectedFreshness(e.target.value)}
             className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-emerald-600"
           >
-            <option value="all">All Availability Timelines</option>
-            <option value="AVAILABLE_NOW">Available Now (In Stock)</option>
-            <option value="FRESH_DAILY">Fresh Daily Dispatch</option>
-            <option value="HARVESTING_NEXT_WEEK">Harvesting Next Week</option>
-            <option value="PRE_ORDER">Pre-Order Harvest Batch</option>
-            <option value="FORWARD_CONTRACT">Forward Offtake Contract</option>
+            <option value="all">{t.marketplace.availability.all}</option>
+            <option value="AVAILABLE_NOW">{t.marketplace.availability.availableNow}</option>
+            <option value="FRESH_DAILY">{t.marketplace.availability.freshDaily}</option>
+            <option value="HARVESTING_NEXT_WEEK">{t.marketplace.availability.harvestingNextWeek}</option>
+            <option value="PRE_ORDER">{t.marketplace.availability.preOrder}</option>
+            <option value="FORWARD_CONTRACT">{t.marketplace.availability.forwardContract}</option>
           </select>
 
           {/* Checkboxes */}
@@ -440,7 +441,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
               onChange={(e) => setOrganicOnly(e.target.checked)}
               className="accent-emerald-700 h-3.5 w-3.5 rounded"
             />
-            🌱 Organic
+            🌱 {t.marketplace.checkboxes.organic}
           </label>
 
           <label className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700 cursor-pointer bg-zinc-50 px-2.5 py-1.5 rounded-xl border border-zinc-200 hover:bg-zinc-100">
@@ -450,7 +451,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
               onChange={(e) => setVerifiedOnly(e.target.checked)}
               className="accent-emerald-700 h-3.5 w-3.5 rounded"
             />
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Verified Producer
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> {t.marketplace.checkboxes.verifiedProducer}
           </label>
 
           <label className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700 cursor-pointer bg-zinc-50 px-2.5 py-1.5 rounded-xl border border-zinc-200 hover:bg-zinc-100">
@@ -460,24 +461,24 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
               onChange={(e) => setLiveAnimalOnly(e.target.checked)}
               className="accent-emerald-700 h-3.5 w-3.5 rounded"
             />
-            🐄 Live Animal
+            🐄 {t.marketplace.checkboxes.liveAnimal}
           </label>
         </div>
 
         {/* Sort selector */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500 font-medium">Sort by:</span>
+          <span className="text-xs text-zinc-500 font-medium">{t.marketplace.sortByLabel}</span>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
             className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-bold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-emerald-600"
           >
-            <option value="recommended">Highest Quality Index</option>
-            <option value="newest">Newest Listings</option>
-            <option value="price_asc">Price: Low to High</option>
-            <option value="price_desc">Price: High to Low</option>
-            <option value="rating">Top Farmer Rating</option>
-            <option value="harvest_recent">Recent Harvest Date</option>
+            <option value="recommended">{t.marketplace.sortOptions.recommended}</option>
+            <option value="newest">{t.marketplace.sortOptions.newest}</option>
+            <option value="price_asc">{t.marketplace.sortOptions.priceAsc}</option>
+            <option value="price_desc">{t.marketplace.sortOptions.priceDesc}</option>
+            <option value="rating">{t.marketplace.sortOptions.rating}</option>
+            <option value="harvest_recent">{t.marketplace.sortOptions.harvestRecent}</option>
           </select>
         </div>
       </div>

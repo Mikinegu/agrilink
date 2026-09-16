@@ -131,6 +131,28 @@ export interface TranslationDictionary {
     howItWorksStep3Desc: string;
     howItWorksStep4Title: string;
     howItWorksStep4Desc: string;
+    featuredFreshHarvests: string;
+    featuredHarvestsSubtitle: string;
+    viewAllListings: string;
+    inspectAndOrder: string;
+    leadershipBadge: string;
+    leadershipTitle: string;
+    leadershipSubtitle: string;
+    bamlakRole: string;
+    bamlakCredentials: string;
+    bamlakFocus: string;
+    bamlakBio: string;
+    besufkadRole: string;
+    besufkadCredentials: string;
+    besufkadFocus: string;
+    besufkadBio: string;
+    foundingPartner: string;
+    locationAddis: string;
+    ctaBadge: string;
+    ctaTitle: string;
+    ctaSubtitle: string;
+    ctaGetStarted: string;
+    ctaSupport: string;
   };
   marketplace: {
     title: string;

@@ -27,6 +27,7 @@ import { ProductCategory, Product, User } from '../types/index.ts';
 import { HeroVideoPlayer } from './HeroVideoPlayer.tsx';
 import { IntroHero } from './IntroHero.tsx';
 import { BamlakSisayLogo, BesufkadAnbesLogo } from './FounderLogos.tsx';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
 
 interface HomePageProps {
   onNavigate: (tab: string) => void;
@@ -53,6 +54,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   onLogoutToGuest,
   onOpenCallCenter,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-12 pb-12">
       {/* Hero Showcase (Farmland Corridors) */}
@@ -273,14 +276,14 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-black text-zinc-900">Featured Fresh Harvests</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">Ready for instant dispatch from verified regional farm estates</p>
+            <h2 className="text-2xl font-black text-zinc-900">{t.home.featuredFreshHarvests}</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">{t.home.featuredHarvestsSubtitle}</p>
           </div>
           <button
             onClick={() => onNavigate('marketplace')}
             className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
           >
-            View all ({featuredProducts.length}+ listings) →
+            {t.home.viewAllListings.replace('{count}', String(featuredProducts.length))}
           </button>
         </div>
 
@@ -312,11 +315,11 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                   <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between">
                     <div>
-                      <span className="text-base font-black text-zinc-900">{p.pricePerUnitEtb.toLocaleString()} ETB</span>
+                      <span className="text-base font-black text-zinc-900">{p.pricePerUnitEtb.toLocaleString()} {t.common.currency}</span>
                       <span className="text-xs text-zinc-400"> /{p.unit}</span>
                     </div>
                     <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md">
-                      Inspect & Order
+                      {t.home.inspectAndOrder}
                     </span>
                   </div>
                 </div>
@@ -331,13 +334,13 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-bold mb-3 shadow-2xs">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span>EXECUTIVE LEADERSHIP & CO-FOUNDERS</span>
+            <span>{t.home.leadershipBadge}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight">
-            Meet the Founding Team
+            {t.home.leadershipTitle}
           </h2>
           <p className="text-xs sm:text-sm text-zinc-500 mt-1.5 leading-relaxed">
-            Experienced domain architects in Agritech, Digital Marketplaces, IoT Cold-Chain Logistics, and High-Throughput Financial Settlement.
+            {t.home.leadershipSubtitle}
           </p>
         </div>
 
@@ -349,7 +352,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <BamlakSisayLogo size={68} />
                 <div className="flex flex-col items-end gap-1.5">
                   <span className="text-[10px] uppercase font-extrabold tracking-wider px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/70 shadow-2xs">
-                    Co-Founder & Product Lead
+                    {t.home.bamlakRole}
                   </span>
                   <a
                     href="https://linkedin.com"
@@ -368,24 +371,24 @@ export const HomePage: React.FC<HomePageProps> = ({
                   Bamlak Sisay
                 </h3>
                 <span className="text-xs font-bold text-emerald-700 block mt-0.5">
-                  Agro-Tech Entrepreneur & Ecosystem Architect
+                  {t.home.bamlakCredentials}
                 </span>
                 <span className="text-[11px] font-medium text-zinc-500 block mt-0.5">
-                  B2B Trade Networks • Escrow Governance • Pan-African Expansion
+                  {t.home.bamlakFocus}
                 </span>
               </div>
 
               <p className="text-xs text-zinc-600 leading-relaxed">
-                Drives product roadmap, merchant escrow frameworks, and key partnerships with agricultural cooperatives, exporters, and commercial enterprise buyers across East Africa.
+                {t.home.bamlakBio}
               </p>
             </div>
 
             <div className="pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px]">
               <span className="font-semibold text-zinc-500 flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                AgriLink Founding Partner
+                {t.home.foundingPartner}
               </span>
-              <span className="font-bold text-emerald-700">Addis Ababa, ET</span>
+              <span className="font-bold text-emerald-700">{t.home.locationAddis}</span>
             </div>
           </div>
 
@@ -396,7 +399,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <BesufkadAnbesLogo size={68} />
                 <div className="flex flex-col items-end gap-1.5">
                   <span className="text-[10px] uppercase font-extrabold tracking-wider px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200/70 shadow-2xs">
-                    Co-Founder & Systems Architect
+                    {t.home.besufkadRole}
                   </span>
                   <a
                     href="https://linkedin.com"
@@ -415,24 +418,24 @@ export const HomePage: React.FC<HomePageProps> = ({
                   Besufkad Anbes
                 </h3>
                 <span className="text-xs font-bold text-blue-700 block mt-0.5">
-                  Fintech & Distributed Systems Engineer
+                  {t.home.besufkadCredentials}
                 </span>
                 <span className="text-[11px] font-medium text-zinc-500 block mt-0.5">
-                  Settlement Engines • Telebirr & CBE Core • IoT Cold-Chain
+                  {t.home.besufkadFocus}
                 </span>
               </div>
 
               <p className="text-xs text-zinc-600 leading-relaxed">
-                Leads high-throughput backend infrastructure, automated smart escrow settlement, real-time freight telematics, and direct national banking integrations.
+                {t.home.besufkadBio}
               </p>
             </div>
 
             <div className="pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px]">
               <span className="font-semibold text-zinc-500 flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
-                AgriLink Founding Partner
+                {t.home.foundingPartner}
               </span>
-              <span className="font-bold text-blue-700">Addis Ababa, ET</span>
+              <span className="font-bold text-blue-700">{t.home.locationAddis}</span>
             </div>
           </div>
         </div>
@@ -444,20 +447,20 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="absolute inset-0 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:20px_20px] opacity-10"></div>
           <div className="relative z-10 max-w-2xl mx-auto space-y-3">
             <span className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold block">
-              AgriLink Digital Grid
+              {t.home.ctaBadge}
             </span>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Ready to Trade or Source Fresh Harvests?
+              {t.home.ctaTitle}
             </h2>
             <p className="text-xs sm:text-sm text-emerald-100/80">
-              Join growers, logistics operators, and commercial buyers across Ethiopia with transparent pricing and bank-grade escrow.
+              {t.home.ctaSubtitle}
             </p>
             <div className="pt-2 flex flex-wrap justify-center gap-3">
               <button
                 onClick={() => onNavigate('marketplace')}
                 className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-black shadow-lg shadow-emerald-700/40 transition-all cursor-pointer hover:scale-105 flex items-center gap-2"
               >
-                <span>Get Started in Marketplace</span>
+                <span>{t.home.ctaGetStarted}</span>
                 <ArrowRight className="h-4 w-4" />
               </button>
 
@@ -467,7 +470,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   className="px-6 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
                 >
                   <Phone className="h-4 w-4 text-emerald-400" />
-                  <span>Call Center & Support</span>
+                  <span>{t.home.ctaSupport}</span>
                 </button>
               )}
             </div>

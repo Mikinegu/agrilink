@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { UserRole } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
+import { TranslationDictionary } from '../i18n/types.ts';
 
 interface SidebarItem {
   label: string;
@@ -32,6 +34,79 @@ interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
 }
+
+export const getTranslatedSidebarConfig = (t: TranslationDictionary): Record<UserRole, SidebarItem[]> => ({
+  FARMER: [
+    { label: t.sidebar.farmerOverview, path: '/farmer/dashboard', icon: LayoutDashboard },
+    { label: t.sidebar.harvestListings, path: '/farmer/listings', icon: Sprout },
+    { label: t.sidebar.farmFields, path: '/farmer/farms', icon: Tractor },
+    { label: t.sidebar.escrowWallet, path: '/farmer/escrow', icon: Wallet },
+    { label: t.sidebar.agriCreditLoans, path: '/farmer/finance', icon: Landmark },
+    { label: t.sidebar.aiCropDoctor, path: '/farmer/ai-advisor', icon: Sparkles, badge: 'AI' },
+  ],
+  BUYER: [
+    { label: t.sidebar.buyerOverview, path: '/buyer/dashboard', icon: LayoutDashboard },
+    { label: t.sidebar.produceMarketplace, path: '/buyer/marketplace', icon: ShoppingBag },
+    { label: t.sidebar.buyRequestsRfqs, path: '/buyer/requests', icon: FileText },
+    { label: t.sidebar.ordersTracking, path: '/buyer/orders', icon: Package },
+    { label: t.sidebar.escrowPayouts, path: '/buyer/escrow', icon: ShieldCheck },
+  ],
+  BUSINESS_BUYER: [
+    { label: t.sidebar.procurementHub, path: '/buyer/dashboard', icon: LayoutDashboard },
+    { label: t.sidebar.produceMarketplace, path: '/buyer/marketplace', icon: ShoppingBag },
+    { label: t.sidebar.contractRequests, path: '/buyer/requests', icon: FileText },
+    { label: t.sidebar.activeShipments, path: '/buyer/orders', icon: Package },
+    { label: t.sidebar.escrowManager, path: '/buyer/escrow', icon: ShieldCheck },
+  ],
+  DRIVER: [
+    { label: t.sidebar.driverDashboard, path: '/logistics/dashboard', icon: LayoutDashboard },
+    { label: t.sidebar.availableLoads, path: '/logistics/loadboard', icon: Truck },
+    { label: t.sidebar.activeTrips, path: '/logistics/trip', icon: MapPin },
+    { label: t.sidebar.tripEarnings, path: '/logistics/earnings', icon: CircleDollarSign },
+  ],
+  LOGISTICS_ADMIN: [
+    { label: t.sidebar.logisticsFleet, path: '/logistics/dashboard', icon: LayoutDashboard },
+    { label: t.sidebar.loadBoard, path: '/logistics/loadboard', icon: Truck },
+    { label: t.sidebar.dispatchTrips, path: '/logistics/trip', icon: MapPin },
+    { label: t.sidebar.fleetRevenue, path: '/logistics/earnings', icon: CircleDollarSign },
+  ],
+  HUB_OPERATOR: [
+    { label: t.sidebar.hubOperations, path: '/logistics/dashboard', icon: LayoutDashboard },
+    { label: t.sidebar.crossDockLoads, path: '/logistics/loadboard', icon: Truck },
+    { label: t.sidebar.activeShipments, path: '/logistics/trip', icon: MapPin },
+    { label: t.sidebar.settlementLedger, path: '/logistics/earnings', icon: CircleDollarSign },
+  ],
+  INPUT_SUPPLIER: [
+    { label: t.sidebar.supplierDashboard, path: '/supplier/dashboard', icon: LayoutDashboard },
+    { label: t.sidebar.inputCatalog, path: '/supplier/products', icon: Boxes },
+    { label: t.sidebar.produceMarketplace, path: '/buyer/marketplace', icon: ShoppingBag },
+  ],
+  FINANCIAL_INSTITUTION: [
+    { label: t.sidebar.creditUnderwriting, path: '/finance/dashboard', icon: LayoutDashboard },
+    { label: t.sidebar.loanApplications, path: '/finance/applications', icon: Landmark },
+    { label: t.sidebar.escrowWallet, path: '/farmer/escrow', icon: ShieldCheck },
+  ],
+  PLATFORM_ADMIN: [
+    { label: t.sidebar.executiveOverview, path: '/admin/overview', icon: LayoutDashboard },
+    { label: t.sidebar.usersKyb, path: '/admin/users', icon: Users },
+    { label: t.sidebar.ordersLogistics, path: '/admin/orders', icon: Package },
+    { label: t.sidebar.creditAppraisalDesk, path: '/admin/finance', icon: Landmark },
+    { label: t.sidebar.produceCatalog, path: '/buyer/marketplace', icon: ShoppingBag },
+    { label: t.sidebar.aiMarketRadar, path: '/farmer/ai-advisor', icon: Sparkles, badge: 'AI' },
+  ],
+});
+
+export const getTranslatedRoleLabels = (t: TranslationDictionary): Record<UserRole, { title: string; color: string; bg: string }> => ({
+  FARMER: { title: t.roles.FARMER, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+  BUYER: { title: t.roles.BUYER, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
+  BUSINESS_BUYER: { title: t.roles.BUSINESS_BUYER, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
+  DRIVER: { title: t.roles.DRIVER, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+  LOGISTICS_ADMIN: { title: t.roles.LOGISTICS_ADMIN, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+  HUB_OPERATOR: { title: t.roles.HUB_OPERATOR, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+  INPUT_SUPPLIER: { title: t.roles.INPUT_SUPPLIER, color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' },
+  FINANCIAL_INSTITUTION: { title: t.roles.FINANCIAL_INSTITUTION, color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200' },
+  PLATFORM_ADMIN: { title: t.roles.PLATFORM_ADMIN, color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200' },
+});
 
 export const SIDEBAR_CONFIG: Record<UserRole, SidebarItem[]> = {
   FARMER: [
@@ -108,14 +183,17 @@ export const ROLE_LABELS: Record<UserRole, { title: string; color: string; bg: s
 
 export const DynamicSidebar: React.FC = () => {
   const { currentUser, logout } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   if (!currentUser) return null;
 
   const role = currentUser.role || 'FARMER';
-  const navItems = SIDEBAR_CONFIG[role] || SIDEBAR_CONFIG.FARMER;
-  const roleBadge = ROLE_LABELS[role] || { title: role, color: 'text-zinc-700', bg: 'bg-zinc-100 border-zinc-200' };
+  const translatedConfig = getTranslatedSidebarConfig(t);
+  const translatedRoles = getTranslatedRoleLabels(t);
+  const navItems = translatedConfig[role] || translatedConfig.FARMER;
+  const roleBadge = translatedRoles[role] || { title: role, color: 'text-zinc-700', bg: 'bg-zinc-100 border-zinc-200' };
 
   const handleSignOut = async () => {
     await logout();
@@ -210,12 +288,28 @@ export const DynamicSidebar: React.FC = () => {
           >
             <span className="flex items-center gap-2">
               <ShoppingBag className="h-3.5 w-3.5 text-zinc-400" />
-              View Market Prices
+              {t.sidebar.produceMarketplace}
             </span>
             <ExternalLink className="h-3 w-3 text-zinc-400" />
           </NavLink>
         </div>
       )}
+
+      {/* Salvage Exchange Quick Entry */}
+      <div className="px-3 pb-2">
+        <NavLink
+          to="/salvage"
+          className="flex items-center justify-between px-3 py-2 text-xs font-bold rounded-xl bg-amber-500/10 text-amber-900 border border-amber-500/30 hover:bg-amber-500/20 transition-all shadow-xs"
+        >
+          <span className="flex items-center gap-2">
+            <span className="text-amber-600 font-black">⚡</span>
+            <span>Salvage Exchange</span>
+          </span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-600 text-white font-black">
+            B2B
+          </span>
+        </NavLink>
+      </div>
 
       {/* User Card & Sign Out */}
       <div className="p-3 border-t border-zinc-200 bg-zinc-50/50">
@@ -238,7 +332,7 @@ export const DynamicSidebar: React.FC = () => {
           </div>
           <button
             onClick={handleSignOut}
-            title="Sign Out"
+            title={t.nav.signOut}
             className="p-2 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
           >
             <LogOut className="h-4 w-4" />

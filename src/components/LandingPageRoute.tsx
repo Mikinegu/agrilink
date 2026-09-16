@@ -67,6 +67,9 @@ export const LandingPageRoute: React.FC<LandingPageRouteProps> = ({
       case 'login':
         navigate('/login');
         break;
+      case 'salvage':
+        navigate('/salvage');
+        break;
       default:
         navigate('/');
     }

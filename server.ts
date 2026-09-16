@@ -36,6 +36,7 @@ import {
 import { eq, desc, and, or, ilike, sql } from 'drizzle-orm';
 import { seedDatabase } from './src/db/seed.ts';
 import { supabase, testSupabaseConnection, getSupabaseConfig, isSupabaseConfigured } from './src/lib/supabase.ts';
+import salvageRouter from './src/routes/salvageRoutes.ts';
 
 dotenv.config();
 
@@ -4066,6 +4067,225 @@ app.get('/api/escrow/ledger', async (req: express.Request, res: express.Response
     return res.status(500).json({ error: err.message });
   }
 });
+
+// ==========================================
+// 15. SALVAGE EXCHANGE & DISTRESSED HARVEST ENGINE
+// ==========================================
+let SALVAGE_LOTS: any[] = [
+  {
+    id: 'lot-wonji-roma-01',
+    lotNumber: 'SALV-882194',
+    farmerId: 1,
+    farmerName: 'Ato Bekele Tadesse',
+    farmerOrg: 'Wonji Horizon Cooperative Farms',
+    region: 'Oromia',
+    locationDetails: 'Wonji Gefersa Packhouse Hub #3',
+    commodity: 'Roma Processing Tomatoes',
+    variety: 'Heinz 1015 Hybrid',
+    category: 'VEGETABLE',
+    lotWeightTons: 18.5,
+    lotWeightKg: 18500,
+    benchmarkPricePerKg: 85.0,
+    totalBenchmarkValue: 1572500,
+    harvestDate: new Date(Date.now() - 14 * 3600 * 1000).toISOString().split('T')[0],
+    damageCauses: ['SUNSCALD', 'SKIN_SPLITTING'],
+    defectPercentage: 38,
+    brixRating: 5.8,
+    acidityPh: 4.25,
+    initialShelfLifeHours: 48,
+    softRotOnsetHoursRemaining: 34,
+    imageUrl: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80',
+    industrialSuitability: {
+      recommendedProcesses: [
+        'Commercial Tomato Paste (Cold-Break 28-30 °Bx)',
+        'Heavy Puree & Pasta Sauces',
+        'Standard Foodservice Ketchup Mash',
+      ],
+      matchScorePercent: 95,
+      scientificAssessment:
+        'High total soluble solids (5.8°Bx) and natural lycopene make this lot an exceptional yield substrate for industrial evaporation, paste, and ketchup cooking.',
+    },
+    status: 'BID_SUBMITTED',
+    createdAt: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
+    bids: [
+      {
+        id: 'bid-redgold-01',
+        lotId: 'lot-wonji-roma-01',
+        processorId: 'proc-redgold',
+        processorName: 'Dr. Henok Haile',
+        processorOrg: 'RedGold Foods & Puree Ltd.',
+        proposedDiscountPercent: 45,
+        offeredPricePerKg: 46.75,
+        totalOfferAmount: 864875,
+        factorySavings: 707625,
+        proposedDeliveryDate: 'Immediate Reefer Dispatch',
+        plantLocation: 'Dukem Industrial Park, Line #2',
+        intendedProduct: 'Commercial Ketchup & Paste Mash',
+        notes: 'Can accept full 18.5 MT lot immediately if delivered by 08:00 AM under 4°C refrigeration.',
+        createdAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
+        status: 'SUBMITTED',
+      },
+    ],
+    activeNegotiation: {
+      id: 'neg-01',
+      lotId: 'lot-wonji-roma-01',
+      bidId: 'bid-redgold-01',
+      initialDiscountPercent: 45,
+      currentDiscountPercent: 45,
+      unitPricePerKg: 46.75,
+      grossAmountEtb: 864875,
+      farmerIncrementalGain: 0,
+      factorySavingsEtb: 707625,
+      platformFeePercent: 2.5,
+      platformFeeEtb: 21622,
+      carrierEstimatedFeeEtb: 46250,
+      netFarmerPayoutEtb: 843253,
+      status: 'PENDING_FARMER_ACTION',
+      updatedAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
+      history: [
+        {
+          actor: 'Dr. Henok Haile',
+          role: 'PROCESSOR',
+          action: 'Initial Discount Bid Submitted',
+          discountPercent: 45,
+          amountEtb: 864875,
+          timestamp: '4 hours ago',
+          notes: '45% discount proposed for ketchup and paste processing.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'lot-ziway-san-marzano-02',
+    lotNumber: 'SALV-901428',
+    farmerId: 2,
+    farmerName: 'Almaz Desta',
+    farmerOrg: 'Lakeside Ziway Producers Co-op',
+    region: 'Oromia (Rift Valley)',
+    locationDetails: 'Ziway Central Greenhouse Depot',
+    commodity: 'San Marzano Processing Paste Tomatoes',
+    variety: 'San Marzano Lampadina',
+    category: 'VEGETABLE',
+    lotWeightTons: 24.0,
+    lotWeightKg: 24000,
+    benchmarkPricePerKg: 90.0,
+    totalBenchmarkValue: 2160000,
+    harvestDate: new Date(Date.now() - 6 * 3600 * 1000).toISOString().split('T')[0],
+    damageCauses: ['HAIL_MARKS', 'TRANSIT_BRUISING'],
+    defectPercentage: 25,
+    brixRating: 6.2,
+    acidityPh: 4.18,
+    initialShelfLifeHours: 54,
+    softRotOnsetHoursRemaining: 48,
+    imageUrl: 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?auto=format&fit=crop&w=600&q=80',
+    industrialSuitability: {
+      recommendedProcesses: ['Concentrated 30-32°Bx Double Paste', 'Whole Peeled Canning', 'Export Pizza Sauce'],
+      matchScorePercent: 98,
+      scientificAssessment:
+        'Superior pectin density, low moisture seed cavity, and 6.2°Bx make this ideal for high-solids industrial concentration.',
+    },
+    status: 'OPEN_FOR_BIDS',
+    createdAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+    bids: [],
+  },
+  {
+    id: 'lot-upper-awash-citrus-03',
+    lotNumber: 'SALV-744102',
+    farmerId: 3,
+    farmerName: 'Worku Mengistu',
+    farmerOrg: 'Upper Awash Agro-Industry Farms',
+    region: 'Oromia / Afar Basin',
+    locationDetails: 'Awash Valley Citrus Packhouse',
+    commodity: 'Valencia Industrial Juice Oranges',
+    variety: 'Valencia Late',
+    category: 'FRUIT',
+    lotWeightTons: 12.0,
+    lotWeightKg: 12000,
+    benchmarkPricePerKg: 65.0,
+    totalBenchmarkValue: 780000,
+    harvestDate: new Date(Date.now() - 24 * 3600 * 1000).toISOString().split('T')[0],
+    damageCauses: ['SUNSCALD', 'IRREGULAR_SIZING'],
+    defectPercentage: 30,
+    brixRating: 11.2,
+    acidityPh: 3.4,
+    initialShelfLifeHours: 96,
+    softRotOnsetHoursRemaining: 72,
+    imageUrl: 'https://images.unsplash.com/photo-1557800636-894a64c1696f?auto=format&fit=crop&w=600&q=80',
+    industrialSuitability: {
+      recommendedProcesses: ['Bulk Frozen Orange Juice Concentrate (FCOJ)', 'Pectin Recovery', 'Citrus Peel Oil'],
+      matchScorePercent: 94,
+      scientificAssessment:
+        'Deep juice sacs and exceptional Brix-to-acid ratio (11.2°Bx) bypass fresh consumer grading for immediate industrial centrifugal extraction.',
+    },
+    status: 'LOCKED_IN_ESCROW',
+    createdAt: new Date(Date.now() - 20 * 3600 * 1000).toISOString(),
+    bids: [
+      {
+        id: 'bid-citrus-01',
+        lotId: 'lot-upper-awash-citrus-03',
+        processorId: 'proc-great-rift',
+        processorName: 'Tadesse Bekele',
+        processorOrg: 'Great Rift Juice Processors Ltd.',
+        proposedDiscountPercent: 32,
+        offeredPricePerKg: 44.2,
+        totalOfferAmount: 530400,
+        factorySavings: 249600,
+        proposedDeliveryDate: 'Dispatched in Reefer',
+        plantLocation: 'Mojo Dry Port Processing Terminal',
+        intendedProduct: 'FCOJ Concentrated Juice Barrels',
+        notes: 'Terms agreed at 32% discount. Cold-chain reefer en route.',
+        createdAt: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
+        status: 'ACCEPTED',
+      },
+    ],
+    dispatchJob: {
+      id: 'dispatch-reefer-77',
+      lotId: 'lot-upper-awash-citrus-03',
+      carrierId: 'carrier-swift',
+      carrierName: 'Captain Yared Solomon',
+      carrierOrg: 'SwiftReefer Cold-Chain Logistics',
+      carrierPhone: '+251 91 345 6789',
+      vehicleType: 'TEMPERATURE_CONTROLLED_REEFER',
+      targetTempRange: '2°C to 4°C',
+      currentTempCelsius: 3.1,
+      currentHumidityPercent: 88,
+      originLocation: 'Awash Valley Packhouse',
+      destinationPlant: 'Mojo Dry Port Processing Terminal',
+      totalDistanceKm: 115,
+      transitMinutesRemaining: 45,
+      transitStatus: 'IN_TRANSIT',
+      bolNumber: 'eBOL-883921',
+      driverName: 'Kenenisa Bekele',
+      plateNumber: 'ET-3-88192-AA',
+      waypoints: [
+        { name: 'Awash Valley Depot (Origin)', lat: 8.98, lng: 40.15, passed: true, time: '06:30 AM' },
+        { name: 'Metehara Highway Checkpoint', lat: 8.89, lng: 39.91, passed: true, time: '07:15 AM' },
+        { name: 'Adama Expressway Junction', lat: 8.54, lng: 39.27, passed: true, time: '08:00 AM' },
+        { name: 'Mojo Processing Bay #2 (Destination)', lat: 8.59, lng: 39.12, passed: false },
+      ],
+      telematicsStream: [
+        { time: '07:00', temperatureCelsius: 3.4, humidityPercent: 89, batteryPercent: 98 },
+        { time: '07:30', temperatureCelsius: 3.2, humidityPercent: 88, batteryPercent: 97 },
+        { time: '08:00', temperatureCelsius: 3.1, humidityPercent: 88, batteryPercent: 96 },
+      ],
+    },
+    escrowVault: {
+      id: 'vault-citrus-77',
+      lotId: 'lot-upper-awash-citrus-03',
+      totalDepositedEtb: 560400,
+      farmerAllocationEtb: 517140,
+      carrierAllocationEtb: 30000,
+      platformCommissionEtb: 13260,
+      escrowStatus: 'FUNDS_LOCKED',
+      depositTransactionRef: 'TX-CHAPA-AWASH-99214',
+    },
+  },
+];
+
+// ==========================================
+// 12. AGRIFLOW RESCUE & B2B SALVAGE COMMODITY EXCHANGE
+// ==========================================
+app.use('/api/salvage', salvageRouter);
 
 // ==========================================
 // 13. VITE MIDDLEWARE & STATIC SERVING

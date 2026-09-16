@@ -6,7 +6,7 @@ var __export = (target, all) => {
 
 // server.ts
 import express from "express";
-import path from "path";
+import path2 from "path";
 import * as dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 
@@ -3103,6 +3103,929 @@ async function seedDatabase(force = false) {
   }
 }
 
+// src/routes/salvageRoutes.ts
+import { Router } from "express";
+
+// src/db/salvageDb.ts
+import { Pool as Pool2 } from "pg";
+import { PGlite as PGlite2 } from "@electric-sql/pglite";
+import * as fs from "fs";
+import * as path from "path";
+var remoteDbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
+var isRemoteActive = false;
+function getPool() {
+  if (global._salvagePgPool) return global._salvagePgPool;
+  if (remoteDbUrl) {
+    try {
+      global._salvagePgPool = new Pool2({
+        connectionString: remoteDbUrl,
+        ssl: { rejectUnauthorized: false },
+        max: 15,
+        connectionTimeoutMillis: 8e3
+      });
+      return global._salvagePgPool;
+    } catch (err) {
+      console.warn("[SalvageDB] Notice initializing remote Postgres pool:", err);
+    }
+  }
+  return null;
+}
+async function getPglite() {
+  if (!global._salvagePglite) {
+    global._salvagePglite = new PGlite2("memory://");
+    await global._salvagePglite.waitReady;
+  }
+  return global._salvagePglite;
+}
+async function query(sql2, params = []) {
+  const pool = getPool();
+  if (pool) {
+    try {
+      const res2 = await pool.query(sql2, params);
+      isRemoteActive = true;
+      return res2.rows;
+    } catch (err) {
+      if (!isRemoteActive) {
+      } else {
+        throw err;
+      }
+    }
+  }
+  const pglite = await getPglite();
+  const res = await pglite.query(sql2, params);
+  return res.rows || [];
+}
+async function transaction(callback) {
+  const pool = getPool();
+  if (pool) {
+    let client = null;
+    try {
+      client = await pool.connect();
+      await client.query("BEGIN");
+      const txClient = {
+        query: async (sql2, params = []) => {
+          const r = await client.query(sql2, params);
+          return r.rows || [];
+        }
+      };
+      const result = await callback(txClient);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      if (client) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (rollbackErr) {
+          console.error("[SalvageDB] Rollback error:", rollbackErr);
+        }
+      }
+      throw err;
+    } finally {
+      if (client) client.release();
+    }
+  }
+  const pglite = await getPglite();
+  return await pglite.transaction(async (tx) => {
+    const txClient = {
+      query: async (sql2, params = []) => {
+        const r = await tx.query(sql2, params);
+        return r.rows || [];
+      }
+    };
+    return await callback(txClient);
+  });
+}
+async function initSalvageDatabase() {
+  if (global._salvageDbInitialized) return;
+  global._salvageDbInitialized = true;
+  try {
+    const migrationPath = path.join(process.cwd(), "scripts", "migrate-salvage-schema.sql");
+    let sql2 = "";
+    if (fs.existsSync(migrationPath)) {
+      sql2 = fs.readFileSync(migrationPath, "utf8");
+    }
+    if (sql2) {
+      const pool = getPool();
+      if (pool) {
+        try {
+          await pool.query(sql2);
+          console.log("[SalvageDB] Remote PostgreSQL schema migration verified.");
+          isRemoteActive = true;
+          return;
+        } catch (remoteErr) {
+          console.warn("[SalvageDB] Remote DB query notice, using embedded Postgres engine:", remoteErr?.message);
+        }
+      }
+      const pglite = await getPglite();
+      await pglite.exec(sql2);
+      console.log("[SalvageDB] Embedded PostgreSQL engine initialized with relational schema & enums.");
+    }
+    const existing = await query("SELECT COUNT(*) as cnt FROM salvage_crop_lots");
+    if (Number(existing[0]?.cnt) === 0) {
+      console.log("[SalvageDB] Seeding baseline Ethiopian distressed harvest lots...");
+      const now = Date.now();
+      await query(
+        `INSERT INTO salvage_crop_lots (
+          farmer_id, commodity_name, target_industry, total_weight_kg, benchmark_price_per_kg,
+          defect_type, defect_severity_pct, brix_level, moisture_pct, status, harvest_timestamp,
+          degradation_deadline, origin_packhouse, image_url, notes
+        ) VALUES
+        (1, 'Roma Processing Paste Tomatoes', 'Ketchup & Paste', 18000, 85.00, 'HAIL_IMPACT', 35.00, 5.40, 93.00, 'ACTIVE_LISTED', NOW() - INTERVAL '12 hours', NOW() + INTERVAL '36 hours', 'Wonji Central Sorting Packhouse', 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80', 'Hail storm at ripening. 35% superficial scuffing. High solids ideal for paste.'),
+        (1, 'San Marzano Canning Tomatoes', 'Ketchup & Paste', 24000, 90.00, 'TRANSIT_BRUISING', 25.00, 6.20, 91.00, 'ACTIVE_LISTED', NOW() - INTERVAL '6 hours', NOW() + INTERVAL '48 hours', 'Ziway Central Greenhouse Depot', 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?auto=format&fit=crop&w=600&q=80', 'Transit vibration impact. High pectin density.'),
+        (1, 'Valencia Industrial Juice Oranges', 'Citrus Juice Concentrate', 12000, 65.00, 'SUNSCALD', 30.00, 11.20, 86.00, 'ACTIVE_LISTED', NOW() - INTERVAL '24 hours', NOW() + INTERVAL '72 hours', 'Awash Valley Citrus Packhouse', 'https://images.unsplash.com/photo-1557800636-894a64c1696f?auto=format&fit=crop&w=600&q=80', 'Sunscald on outer canopy. Excellent Brix-to-acid ratio for bulk FCOJ.')`
+      );
+      console.log("[SalvageDB] Baseline lots seeded successfully.");
+    }
+  } catch (err) {
+    console.error("[SalvageDB] Initialization error:", err?.message || err);
+  }
+}
+
+// src/lib/salvageCalculator.ts
+function computeLotEconomics(weightKg, benchmarkPricePerKg, discountPct) {
+  const safeWeight = Math.max(0, Number(weightKg) || 0);
+  const safeBenchmark = Math.max(0, Number(benchmarkPricePerKg) || 0);
+  const safeDiscount = Math.min(100, Math.max(0, Number(discountPct) || 0));
+  const effectivePricePerKg = Number((safeBenchmark * (1 - safeDiscount / 100)).toFixed(2));
+  const grossFarmerPayout = Math.round(safeWeight * effectivePricePerKg);
+  const standardMarketValue = Math.round(safeWeight * safeBenchmark);
+  const factorySavings = Math.max(0, standardMarketValue - grossFarmerPayout);
+  const platformFee = Number((grossFarmerPayout * 0.025).toFixed(2));
+  const netFarmerTakeHome = Number((grossFarmerPayout - platformFee).toFixed(2));
+  return {
+    effectivePricePerKg,
+    grossFarmerPayout,
+    standardMarketValue,
+    factorySavings,
+    platformFee,
+    netFarmerTakeHome
+  };
+}
+function computeCounterGain(weightKg, benchmarkPricePerKg, prevDiscountPct, newDiscountPct) {
+  const prevEcon = computeLotEconomics(weightKg, benchmarkPricePerKg, prevDiscountPct);
+  const newEcon = computeLotEconomics(weightKg, benchmarkPricePerKg, newDiscountPct);
+  const gainRetained = newEcon.grossFarmerPayout - prevEcon.grossFarmerPayout;
+  return {
+    prevGrossPayout: prevEcon.grossFarmerPayout,
+    newGrossPayout: newEcon.grossFarmerPayout,
+    gainRetained,
+    prevEffectivePrice: prevEcon.effectivePricePerKg,
+    newEffectivePrice: newEcon.effectivePricePerKg
+  };
+}
+function computeCarrierFreightFee(weightKg, distanceKm = 80) {
+  const weightTons = Math.max(0, Number(weightKg) || 0) / 1e3;
+  const baseRateEtb = 4500;
+  const tonKmRate = 12.5;
+  const total = baseRateEtb + weightTons * distanceKm * tonKmRate;
+  return Math.round(total);
+}
+function evaluateIndustrialSuitability(commodity, brixLevel, defectSeverityPct) {
+  const brix = Number(brixLevel) || 0;
+  const defect = Number(defectSeverityPct) || 0;
+  const lowerComm = commodity.toLowerCase();
+  if (lowerComm.includes("tomato")) {
+    let score = 70;
+    if (brix >= 5) score += 20;
+    else if (brix >= 4.2) score += 10;
+    if (defect <= 35) score += 10;
+    return {
+      matchScorePercent: Math.min(99, score),
+      recommendedProcesses: [
+        "Concentrated 28-30\xB0Bx Tomato Paste",
+        "Bulk Puree for Industrial Ketchup",
+        "Pizza Sauce Pulp Base"
+      ],
+      assessment: `Brix of ${brix}\xB0Bx with ${defect}% superficial defect is optimal for industrial thermal concentration into paste.`
+    };
+  }
+  if (lowerComm.includes("orange") || lowerComm.includes("citrus")) {
+    let score = 72;
+    if (brix >= 10.5) score += 22;
+    else if (brix >= 9) score += 12;
+    if (defect <= 30) score += 6;
+    return {
+      matchScorePercent: Math.min(98, score),
+      recommendedProcesses: [
+        "Frozen Concentrated Orange Juice (FCOJ)",
+        "Industrial Pectin Recovery",
+        "Cold-Pressed Peel Essential Oil"
+      ],
+      assessment: `Rich juice sac density (${brix}\xB0Bx) allows immediate centrifugal extraction bypassing cosmetic sorting.`
+    };
+  }
+  return {
+    matchScorePercent: 88,
+    recommendedProcesses: ["Industrial Dehydration & Powder", "Starch / Puree Processing"],
+    assessment: "Suitable for secondary industrial food transformation with minimal defect trimming."
+  };
+}
+function computeDegradationDeadline(degradationHours) {
+  const hours = Math.max(1, Number(degradationHours) || 24);
+  return new Date(Date.now() + hours * 3600 * 1e3);
+}
+function computeHoursRemaining(deadline) {
+  const target = new Date(deadline).getTime();
+  const now = Date.now();
+  const diffMs = target - now;
+  if (diffMs <= 0) return 0;
+  return Number((diffMs / (3600 * 1e3)).toFixed(1));
+}
+
+// src/routes/salvageRoutes.ts
+var router = Router();
+router.use(async (_req, _res, next) => {
+  try {
+    await initSalvageDatabase();
+    next();
+  } catch (err) {
+    console.error("[SalvageRouter] DB initialization error:", err);
+    next(err);
+  }
+});
+router.post("/lots", async (req, res) => {
+  try {
+    const {
+      farmerId = 1,
+      commodityName,
+      targetIndustry = "Ketchup & Paste",
+      weightKg,
+      benchmarkPrice,
+      defectType,
+      defectSeverityPct,
+      brixLevel,
+      moisturePct,
+      degradationHours = 48,
+      originPackhouse = "Wonji Central Sorting Packhouse",
+      imageUrl,
+      notes
+    } = req.body;
+    if (!commodityName || !weightKg || !benchmarkPrice || !defectType) {
+      return res.status(400).json({
+        error: "Missing required lot fields: commodityName, weightKg, benchmarkPrice, defectType."
+      });
+    }
+    const validDefects = ["HAIL_IMPACT", "SUNSCALD", "TRANSIT_BRUISING", "SKIN_SPLITTING", "AESTHETIC_BLEMISH"];
+    const safeDefectType = validDefects.includes(defectType) ? defectType : "HAIL_IMPACT";
+    const safeWeight = Number(weightKg);
+    const safeBenchmark = Number(benchmarkPrice);
+    const safeDefectPct = Number(defectSeverityPct) || 25;
+    const safeBrix = Number(brixLevel) || 5;
+    const safeMoisture = moisturePct ? Number(moisturePct) : null;
+    const degradationDeadline = computeDegradationDeadline(Number(degradationHours));
+    const insertSql = `
+      INSERT INTO salvage_crop_lots (
+        farmer_id, commodity_name, target_industry, total_weight_kg, benchmark_price_per_kg,
+        defect_type, defect_severity_pct, brix_level, moisture_pct, status, harvest_timestamp,
+        degradation_deadline, origin_packhouse, image_url, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE_LISTED', NOW(), $10, $11, $12, $13)
+      RETURNING *;
+    `;
+    const rows = await query(insertSql, [
+      Number(farmerId) || 1,
+      commodityName,
+      targetIndustry,
+      safeWeight,
+      safeBenchmark,
+      safeDefectType,
+      safeDefectPct,
+      safeBrix,
+      safeMoisture,
+      degradationDeadline.toISOString(),
+      originPackhouse,
+      imageUrl || "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80",
+      notes || ""
+    ]);
+    const createdLot = rows[0];
+    const economics = computeLotEconomics(safeWeight, safeBenchmark, 0);
+    const suitability = evaluateIndustrialSuitability(commodityName, safeBrix, safeDefectPct);
+    return res.status(201).json({
+      success: true,
+      lot: {
+        ...createdLot,
+        hoursRemaining: computeHoursRemaining(createdLot.degradation_deadline),
+        economics,
+        suitability
+      }
+    });
+  } catch (err) {
+    console.error("[POST /api/salvage/lots] Error:", err);
+    return res.status(500).json({ error: "Internal server error creating salvage lot", details: err?.message });
+  }
+});
+router.get("/lots", async (req, res) => {
+  try {
+    const { industry, minBrix, maxDefect, status } = req.query;
+    let sql2 = `
+      SELECT 
+        l.*,
+        u.full_name as farmer_name,
+        u.organization_name as farmer_org,
+        u.phone as farmer_phone,
+        u.region as farmer_region
+      FROM salvage_crop_lots l
+      JOIN users u ON l.farmer_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (industry) {
+      params.push(`%${industry}%`);
+      sql2 += ` AND l.target_industry ILIKE $${params.length}`;
+    }
+    if (minBrix) {
+      params.push(Number(minBrix));
+      sql2 += ` AND l.brix_level >= $${params.length}`;
+    }
+    if (maxDefect) {
+      params.push(Number(maxDefect));
+      sql2 += ` AND l.defect_severity_pct <= $${params.length}`;
+    }
+    if (status) {
+      params.push(status);
+      sql2 += ` AND l.status = $${params.length}`;
+    }
+    sql2 += " ORDER BY l.id DESC";
+    const lots = await query(sql2, params);
+    const enrichedLots = await Promise.all(
+      lots.map(async (lot) => {
+        const [negotiations, shipments, vaults] = await Promise.all([
+          query(
+            `SELECT n.*, b.full_name as buyer_name, b.organization_name as buyer_org 
+             FROM salvage_negotiations n
+             JOIN users b ON n.buyer_id = b.id
+             WHERE n.lot_id = $1 ORDER BY n.id DESC LIMIT 5`,
+            [lot.id]
+          ),
+          query(
+            `SELECT s.*, c.full_name as carrier_name, c.organization_name as carrier_org 
+             FROM freight_shipments s
+             JOIN users c ON s.carrier_id = c.id
+             WHERE s.lot_id = $1 ORDER BY s.id DESC LIMIT 1`,
+            [lot.id]
+          ),
+          query(
+            `SELECT * FROM escrow_vault WHERE lot_id = $1 ORDER BY id DESC LIMIT 1`,
+            [lot.id]
+          )
+        ]);
+        const hoursRemaining = computeHoursRemaining(lot.degradation_deadline);
+        const suitability = evaluateIndustrialSuitability(
+          lot.commodity_name,
+          Number(lot.brix_level),
+          Number(lot.defect_severity_pct)
+        );
+        return {
+          ...lot,
+          hoursRemaining,
+          isExpired: hoursRemaining <= 0,
+          industrialSuitability: suitability,
+          negotiations: negotiations || [],
+          activeNegotiation: negotiations[0] || null,
+          shipment: shipments[0] || null,
+          escrowVault: vaults[0] || null
+        };
+      })
+    );
+    return res.json(enrichedLots);
+  } catch (err) {
+    console.error("[GET /api/salvage/lots] Error:", err);
+    return res.status(500).json({ error: "Failed to retrieve salvage lots", details: err?.message });
+  }
+});
+router.post("/negotiate/bid", async (req, res) => {
+  try {
+    const { lotId, buyerId = 2, proposedDiscountPercent = 45, intendedProduct, notes } = req.body;
+    if (!lotId) {
+      return res.status(400).json({ error: "lotId is required to submit a negotiation bid." });
+    }
+    const lotRows = await query("SELECT * FROM salvage_crop_lots WHERE id = $1", [Number(lotId)]);
+    if (!lotRows.length) {
+      return res.status(404).json({ error: `Salvage lot with ID ${lotId} not found.` });
+    }
+    const lot = lotRows[0];
+    if (lot.status === "DEAL_ACCEPTED" || lot.status === "QA_APPROVED") {
+      return res.status(400).json({ error: `Cannot bid on lot in status: ${lot.status}` });
+    }
+    const discountPct = Math.min(80, Math.max(5, Number(proposedDiscountPercent) || 45));
+    const economics = computeLotEconomics(
+      Number(lot.total_weight_kg),
+      Number(lot.benchmark_price_per_kg),
+      discountPct
+    );
+    const expirationTimestamp = new Date(Date.now() + 6 * 3600 * 1e3);
+    const counterHistory = [
+      {
+        by: "INDUSTRIAL_BUYER",
+        discountPct,
+        effectivePricePerKg: economics.effectivePricePerKg,
+        grossPayout: economics.grossFarmerPayout,
+        factorySavings: economics.factorySavings,
+        intendedProduct: intendedProduct || "Industrial Food Processing",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        notes: notes || `Initial offer with ${discountPct}% discount.`
+      }
+    ];
+    const insertNegSql = `
+      INSERT INTO salvage_negotiations (
+        lot_id, farmer_id, buyer_id, proposed_discount_pct, effective_unit_price,
+        gross_farmer_payout, factory_savings, last_turn_by, status, counter_history,
+        expiration_timestamp
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'INDUSTRIAL_BUYER', 'PROPOSED_BY_BUYER', $8, $9)
+      RETURNING *;
+    `;
+    const negRows = await query(insertNegSql, [
+      lot.id,
+      lot.farmer_id,
+      Number(buyerId) || 2,
+      discountPct,
+      economics.effectivePricePerKg,
+      economics.grossFarmerPayout,
+      economics.factorySavings,
+      JSON.stringify(counterHistory),
+      expirationTimestamp.toISOString()
+    ]);
+    await query("UPDATE salvage_crop_lots SET status = 'UNDER_NEGOTIATION' WHERE id = $1", [lot.id]);
+    return res.status(201).json({
+      success: true,
+      negotiation: negRows[0],
+      economics
+    });
+  } catch (err) {
+    console.error("[POST /api/salvage/negotiate/bid] Error:", err);
+    return res.status(500).json({ error: "Failed to create buyer offer", details: err?.message });
+  }
+});
+router.post("/negotiate/counter", async (req, res) => {
+  try {
+    const { negotiationId, counterDiscountPercent = 28, notes } = req.body;
+    if (!negotiationId) {
+      return res.status(400).json({ error: "negotiationId is required to counter an offer." });
+    }
+    const negRows = await query("SELECT * FROM salvage_negotiations WHERE id = $1", [Number(negotiationId)]);
+    if (!negRows.length) {
+      return res.status(404).json({ error: `Negotiation #${negotiationId} not found.` });
+    }
+    const neg = negRows[0];
+    const lotRows = await query("SELECT * FROM salvage_crop_lots WHERE id = $1", [neg.lot_id]);
+    const lot = lotRows[0];
+    if (!lot) return res.status(404).json({ error: "Associated crop lot not found." });
+    const prevDiscount = Number(neg.proposed_discount_pct);
+    const newDiscount = Math.min(prevDiscount, Math.max(0, Number(counterDiscountPercent) || 28));
+    const gainMetrics = computeCounterGain(
+      Number(lot.total_weight_kg),
+      Number(lot.benchmark_price_per_kg),
+      prevDiscount,
+      newDiscount
+    );
+    const newEcon = computeLotEconomics(
+      Number(lot.total_weight_kg),
+      Number(lot.benchmark_price_per_kg),
+      newDiscount
+    );
+    let history = [];
+    try {
+      history = typeof neg.counter_history === "string" ? JSON.parse(neg.counter_history) : neg.counter_history || [];
+    } catch {
+      history = [];
+    }
+    const counterEntry = {
+      by: "FARMER",
+      discountPct: newDiscount,
+      gainRetained: gainMetrics.gainRetained,
+      effectivePricePerKg: newEcon.effectivePricePerKg,
+      grossPayout: newEcon.grossFarmerPayout,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      notes: notes || `Farmer countered at ${newDiscount}% discount, retaining +${gainMetrics.gainRetained} ETB.`
+    };
+    history.push(counterEntry);
+    const updateSql = `
+      UPDATE salvage_negotiations SET
+        proposed_discount_pct = $1,
+        effective_unit_price = $2,
+        gross_farmer_payout = $3,
+        factory_savings = $4,
+        last_turn_by = 'FARMER',
+        status = 'COUNTERED_BY_FARMER',
+        counter_history = $5,
+        updated_at = NOW()
+      WHERE id = $6
+      RETURNING *;
+    `;
+    const updatedRows = await query(updateSql, [
+      newDiscount,
+      newEcon.effectivePricePerKg,
+      newEcon.grossFarmerPayout,
+      newEcon.factorySavings,
+      JSON.stringify(history),
+      neg.id
+    ]);
+    return res.json({
+      success: true,
+      negotiation: updatedRows[0],
+      gainMetrics,
+      newEconomics: newEcon
+    });
+  } catch (err) {
+    console.error("[POST /api/salvage/negotiate/counter] Error:", err);
+    return res.status(500).json({ error: "Failed to process counter-offer", details: err?.message });
+  }
+});
+router.post("/negotiate/accept", async (req, res) => {
+  try {
+    const { negotiationId, carrierId = 3, agreedDiscount } = req.body;
+    if (!negotiationId) {
+      return res.status(400).json({ error: "negotiationId is required to accept a deal." });
+    }
+    const result = await transaction(async (tx) => {
+      const negRows = await tx.query(
+        "SELECT * FROM salvage_negotiations WHERE id = $1 FOR UPDATE",
+        [Number(negotiationId)]
+      );
+      if (!negRows.length) {
+        throw new Error(`Negotiation #${negotiationId} not found.`);
+      }
+      const neg = negRows[0];
+      const lotRows = await tx.query(
+        "SELECT * FROM salvage_crop_lots WHERE id = $1 FOR UPDATE",
+        [neg.lot_id]
+      );
+      if (!lotRows.length) {
+        throw new Error(`Salvage lot #${neg.lot_id} not found.`);
+      }
+      const lot = lotRows[0];
+      if (lot.status === "DEAL_ACCEPTED" || lot.status === "QA_APPROVED") {
+        throw new Error(`Lot #${lot.id} has already been accepted or closed.`);
+      }
+      const finalDiscount = agreedDiscount !== void 0 ? Number(agreedDiscount) : Number(neg.proposed_discount_pct);
+      const econ = computeLotEconomics(
+        Number(lot.total_weight_kg),
+        Number(lot.benchmark_price_per_kg),
+        finalDiscount
+      );
+      const carrierFee = computeCarrierFreightFee(Number(lot.total_weight_kg));
+      const grossHoldAmount = econ.grossFarmerPayout + carrierFee;
+      const updatedNegRows = await tx.query(
+        `UPDATE salvage_negotiations SET
+          status = 'ACCEPTED',
+          proposed_discount_pct = $1,
+          effective_unit_price = $2,
+          gross_farmer_payout = $3,
+          factory_savings = $4,
+          updated_at = NOW()
+        WHERE id = $5 RETURNING *`,
+        [finalDiscount, econ.effectivePricePerKg, econ.grossFarmerPayout, econ.factorySavings, neg.id]
+      );
+      await tx.query(
+        "UPDATE salvage_crop_lots SET status = 'DEAL_ACCEPTED', updated_at = NOW() WHERE id = $1",
+        [lot.id]
+      );
+      const depositRef = `TX-ESCROW-HOLD-${Date.now()}`;
+      const vaultRows = await tx.query(
+        `INSERT INTO escrow_vault (
+          lot_id, negotiation_id, buyer_id, farmer_id, carrier_id,
+          gross_hold_amount, net_farmer_allocation, carrier_freight_allocation,
+          platform_fee, escrow_status, deposit_transaction_ref
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'HELD_IN_VAULT', $10)
+        RETURNING *`,
+        [
+          lot.id,
+          neg.id,
+          neg.buyer_id,
+          neg.farmer_id,
+          Number(carrierId) || 3,
+          grossHoldAmount,
+          econ.netFarmerTakeHome,
+          carrierFee,
+          econ.platformFee,
+          depositRef
+        ]
+      );
+      const bolNumber = `eBOL-${Math.floor(1e5 + Math.random() * 9e5)}`;
+      const initialTelemetry = [
+        {
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          waypoint: "Origin Farm Packhouse",
+          ambientTempCelsius: 2.8,
+          humidityPercent: 88,
+          batteryPercent: 99,
+          coordinates: { lat: 8.52, lng: 39.29 },
+          status: "DISPATCHED"
+        }
+      ];
+      const shipmentRows = await tx.query(
+        `INSERT INTO freight_shipments (
+          lot_id, negotiation_id, carrier_id, vehicle_type, target_temperature_celsius,
+          telemetry_readings, pickup_location, dropoff_location, freight_fee, status,
+          bol_number, driver_name, plate_number, dispatched_at
+        ) VALUES ($1, $2, $3, 'TEMPERATURE_CONTROLLED_REEFER', 3.0, $4, $5, $6, $7, 'DISPATCHED', $8, 'Solomon Kebede', 'ET-3-88192-AA', NOW())
+        RETURNING *`,
+        [
+          lot.id,
+          neg.id,
+          Number(carrierId) || 3,
+          JSON.stringify(initialTelemetry),
+          lot.origin_packhouse || "Wonji Central Packhouse",
+          "RedGold Cannery & Puree Co., Adama Agro-Park Dock #3",
+          carrierFee,
+          bolNumber
+        ]
+      );
+      return {
+        negotiation: updatedNegRows[0],
+        escrowVault: vaultRows[0],
+        freightShipment: shipmentRows[0],
+        economics: econ
+      };
+    });
+    return res.json({
+      success: true,
+      message: "Negotiation accepted and escrow locked in vault under atomic transaction.",
+      ...result
+    });
+  } catch (err) {
+    console.error("[POST /api/salvage/negotiate/accept] Transaction Error:", err);
+    return res.status(500).json({ error: "Failed to accept deal transaction", details: err?.message });
+  }
+});
+router.post("/negotiate/reject", async (req, res) => {
+  try {
+    const { negotiationId, reason } = req.body;
+    if (!negotiationId) {
+      return res.status(400).json({ error: "negotiationId is required." });
+    }
+    const negRows = await query("SELECT * FROM salvage_negotiations WHERE id = $1", [Number(negotiationId)]);
+    if (!negRows.length) {
+      return res.status(404).json({ error: `Negotiation #${negotiationId} not found.` });
+    }
+    const neg = negRows[0];
+    await query("UPDATE salvage_negotiations SET status = 'REJECTED', updated_at = NOW() WHERE id = $1", [neg.id]);
+    await query("UPDATE salvage_crop_lots SET status = 'ACTIVE_LISTED', updated_at = NOW() WHERE id = $1", [neg.lot_id]);
+    return res.json({
+      success: true,
+      message: "Offer declined. Crop lot status reverted to ACTIVE_LISTED for open bidding.",
+      reason: reason || "Terms not accepted."
+    });
+  } catch (err) {
+    console.error("[POST /api/salvage/negotiate/reject] Error:", err);
+    return res.status(500).json({ error: "Failed to reject negotiation", details: err?.message });
+  }
+});
+router.post("/logistics/telemetry", async (req, res) => {
+  try {
+    const {
+      shipmentId,
+      lotId,
+      ambientTemperatureCelsius,
+      relativeHumidityPercent,
+      batteryPercent = 95,
+      currentLocation = "Expressway Transit Corridor",
+      coordinates,
+      status = "IN_TRANSIT"
+    } = req.body;
+    const findSql = shipmentId ? "SELECT * FROM freight_shipments WHERE id = $1" : "SELECT * FROM freight_shipments WHERE lot_id = $1 ORDER BY id DESC LIMIT 1";
+    const findParam = shipmentId ? Number(shipmentId) : Number(lotId);
+    const shipRows = await query(findSql, [findParam]);
+    if (!shipRows.length) {
+      return res.status(404).json({ error: "Freight shipment not found." });
+    }
+    const shipment = shipRows[0];
+    let telemetry = [];
+    try {
+      telemetry = typeof shipment.telemetry_readings === "string" ? JSON.parse(shipment.telemetry_readings) : shipment.telemetry_readings || [];
+    } catch {
+      telemetry = [];
+    }
+    const newReading = {
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      ambientTempCelsius: Number(ambientTemperatureCelsius) || shipment.target_temperature_celsius || 3,
+      humidityPercent: Number(relativeHumidityPercent) || 88,
+      batteryPercent: Number(batteryPercent) || 95,
+      currentLocation,
+      coordinates: coordinates || { lat: 8.6, lng: 39.15 },
+      status
+    };
+    telemetry.push(newReading);
+    const updateSql = `
+      UPDATE freight_shipments SET
+        telemetry_readings = $1,
+        status = $2,
+        updated_at = NOW()
+      WHERE id = $3
+      RETURNING *;
+    `;
+    const updatedShipments = await query(updateSql, [JSON.stringify(telemetry), status, shipment.id]);
+    if (status === "IN_TRANSIT") {
+      await query("UPDATE salvage_crop_lots SET status = 'IN_TRANSIT' WHERE id = $1", [shipment.lot_id]);
+    }
+    return res.json({
+      success: true,
+      shipment: updatedShipments[0],
+      latestReading: newReading
+    });
+  } catch (err) {
+    console.error("[POST /api/salvage/logistics/telemetry] Error:", err);
+    return res.status(500).json({ error: "Failed to record logistics telemetry", details: err?.message });
+  }
+});
+router.post("/escrow/release-qa", async (req, res) => {
+  try {
+    const {
+      lotId,
+      vaultId,
+      qaPassed = true,
+      inspectorName = "Dr. Dawit Haile (Lead Chemist)",
+      measuredBrix,
+      measuredDefectPct,
+      inspectorNotes
+    } = req.body;
+    if (!lotId && !vaultId) {
+      return res.status(400).json({ error: "lotId or vaultId is required for Gate QA settlement." });
+    }
+    const result = await transaction(async (tx) => {
+      const vSql = vaultId ? "SELECT * FROM escrow_vault WHERE id = $1 FOR UPDATE" : "SELECT * FROM escrow_vault WHERE lot_id = $1 ORDER BY id DESC LIMIT 1 FOR UPDATE";
+      const vParam = vaultId ? Number(vaultId) : Number(lotId);
+      const vaultRows = await tx.query(vSql, [vParam]);
+      if (!vaultRows.length) {
+        throw new Error("Associated escrow vault record not found.");
+      }
+      const vault = vaultRows[0];
+      if (vault.escrow_status === "RELEASED_TO_FARMER") {
+        throw new Error("Escrow funds have already been released for this lot.");
+      }
+      if (qaPassed) {
+        const disbRef = `TX-CHAPA-DISB-${Date.now()}`;
+        const notes = inspectorNotes || `Gate QA passed: Brix ${measuredBrix || "nominal"}\xB0Bx, Defect ${measuredDefectPct || "within tolerance"}%.`;
+        const updatedVaultRows = await tx.query(
+          `UPDATE escrow_vault SET
+            escrow_status = 'RELEASED_TO_FARMER',
+            qa_inspector_notes = $1,
+            qa_pass_timestamp = NOW(),
+            release_timestamp = NOW(),
+            disbursement_transaction_ref = $2,
+            updated_at = NOW()
+          WHERE id = $3 RETURNING *`,
+          [notes, disbRef, vault.id]
+        );
+        await tx.query(
+          "UPDATE salvage_crop_lots SET status = 'QA_APPROVED', updated_at = NOW() WHERE id = $1",
+          [vault.lot_id]
+        );
+        await tx.query(
+          "UPDATE freight_shipments SET status = 'DELIVERED', delivered_at = NOW(), updated_at = NOW() WHERE lot_id = $1",
+          [vault.lot_id]
+        );
+        const settlementStatement = {
+          lotId: vault.lot_id,
+          grossVaultAmount: Number(vault.gross_hold_amount),
+          disbursedFarmerPayout: Number(vault.net_farmer_allocation),
+          disbursedCarrierFreight: Number(vault.carrier_freight_allocation),
+          retainedPlatformFee: Number(vault.platform_fee),
+          disbursementTransactionRef: disbRef,
+          inspector: inspectorName,
+          inspectionTimestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          qaStatus: "PASSED"
+        };
+        return {
+          qaPassed: true,
+          settlementStatement,
+          vault: updatedVaultRows[0]
+        };
+      } else {
+        const disputeNotes = inspectorNotes || "Physical quality inspection failed. Defect density or rot exceeds processing threshold.";
+        const updatedVaultRows = await tx.query(
+          `UPDATE escrow_vault SET
+            escrow_status = 'DISPUTED',
+            qa_inspector_notes = $1,
+            updated_at = NOW()
+          WHERE id = $2 RETURNING *`,
+          [disputeNotes, vault.id]
+        );
+        return {
+          qaPassed: false,
+          disputeLogged: true,
+          vault: updatedVaultRows[0],
+          arbitrationNotice: "Funds held in vault. AgriLink Platform Compliance Arbiter notified for formal inspection review."
+        };
+      }
+    });
+    return res.json({
+      success: true,
+      ...result
+    });
+  } catch (err) {
+    console.error("[POST /api/salvage/escrow/release-qa] Error:", err);
+    return res.status(500).json({ error: "Failed to process Gate QA release", details: err?.message });
+  }
+});
+router.post("/reset", async (_req, res) => {
+  try {
+    await query("DELETE FROM escrow_vault");
+    await query("DELETE FROM freight_shipments");
+    await query("DELETE FROM salvage_negotiations");
+    await query("DELETE FROM salvage_crop_lots");
+    global._salvageDbInitialized = false;
+    await initSalvageDatabase();
+    const lots = await query("SELECT * FROM salvage_crop_lots ORDER BY id ASC");
+    return res.json({ success: true, message: "Database reset to baseline state.", lotsCount: lots.length });
+  } catch (err) {
+    console.error("[POST /api/salvage/reset] Error:", err);
+    return res.status(500).json({ error: "Failed to reset database", details: err?.message });
+  }
+});
+router.post("/lots/:id/bids", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { proposedDiscountPercent = 45, intendedProduct, notes } = req.body;
+    const lotIdNum = parseInt(String(id).replace(/\D/g, ""), 10) || 1;
+    let lotRows = await query("SELECT * FROM salvage_crop_lots WHERE id = $1", [lotIdNum]);
+    if (!lotRows.length) {
+      lotRows = await query("SELECT * FROM salvage_crop_lots ORDER BY id ASC LIMIT 1");
+    }
+    if (!lotRows.length) return res.status(404).json({ error: "No salvage lots found" });
+    const lot = lotRows[0];
+    const discount = Number(proposedDiscountPercent) || 45;
+    const econ = computeLotEconomics(Number(lot.total_weight_kg), Number(lot.benchmark_price_per_kg), discount);
+    const history = [
+      {
+        by: "INDUSTRIAL_BUYER",
+        discountPct: discount,
+        effectivePricePerKg: econ.effectivePricePerKg,
+        grossPayout: econ.grossFarmerPayout,
+        factorySavings: econ.factorySavings,
+        intendedProduct: intendedProduct || "Industrial Canning / Puree",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        notes: notes || ""
+      }
+    ];
+    const negRows = await query(
+      `INSERT INTO salvage_negotiations (
+        lot_id, farmer_id, buyer_id, proposed_discount_pct, effective_unit_price,
+        gross_farmer_payout, factory_savings, last_turn_by, status, counter_history,
+        expiration_timestamp
+      ) VALUES ($1, $2, 2, $3, $4, $5, $6, 'INDUSTRIAL_BUYER', 'PROPOSED_BY_BUYER', $7, NOW() + INTERVAL '6 hours')
+      RETURNING *`,
+      [lot.id, lot.farmer_id, discount, econ.effectivePricePerKg, econ.grossFarmerPayout, econ.factorySavings, JSON.stringify(history)]
+    );
+    await query("UPDATE salvage_crop_lots SET status = 'UNDER_NEGOTIATION' WHERE id = $1", [lot.id]);
+    return res.json({ success: true, negotiation: negRows[0], economics: econ });
+  } catch (err) {
+    return res.status(500).json({ error: err?.message });
+  }
+});
+router.post("/lots/:id/negotiate", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, counterDiscount, agreedDiscount, notes } = req.body;
+    const lotIdNum = parseInt(String(id).replace(/\D/g, ""), 10) || 1;
+    let lotRows = await query("SELECT * FROM salvage_crop_lots WHERE id = $1", [lotIdNum]);
+    if (!lotRows.length) lotRows = await query("SELECT * FROM salvage_crop_lots ORDER BY id ASC LIMIT 1");
+    if (!lotRows.length) return res.status(404).json({ error: "Lot not found" });
+    const lot = lotRows[0];
+    const negRows = await query("SELECT * FROM salvage_negotiations WHERE lot_id = $1 ORDER BY id DESC LIMIT 1", [lot.id]);
+    const negId = negRows.length ? negRows[0].id : null;
+    if (action === "ACCEPT") {
+      if (!negId) {
+        const discount = Number(agreedDiscount) || 45;
+        const econ = computeLotEconomics(Number(lot.total_weight_kg), Number(lot.benchmark_price_per_kg), discount);
+        const createdNeg = await query(
+          `INSERT INTO salvage_negotiations (
+            lot_id, farmer_id, buyer_id, proposed_discount_pct, effective_unit_price,
+            gross_farmer_payout, factory_savings, last_turn_by, status, expiration_timestamp
+          ) VALUES ($1, $2, 2, $3, $4, $5, $6, 'INDUSTRIAL_BUYER', 'ACCEPTED', NOW() + INTERVAL '6 hours')
+          RETURNING id`,
+          [lot.id, lot.farmer_id, discount, econ.effectivePricePerKg, econ.grossFarmerPayout, econ.factorySavings]
+        );
+        req.body.negotiationId = createdNeg[0].id;
+      } else {
+        req.body.negotiationId = negId;
+      }
+      return router.handle({ ...req, url: "/negotiate/accept", method: "POST" }, res);
+    }
+    if (action === "COUNTER") {
+      if (!negId) return res.status(400).json({ error: "No active negotiation to counter" });
+      req.body.negotiationId = negId;
+      req.body.counterDiscountPercent = counterDiscount;
+      return router.handle({ ...req, url: "/negotiate/counter", method: "POST" }, res);
+    }
+    if (action === "REJECT") {
+      if (!negId) return res.status(400).json({ error: "No active negotiation to reject" });
+      req.body.negotiationId = negId;
+      return router.handle({ ...req, url: "/negotiate/reject", method: "POST" }, res);
+    }
+    return res.json({ success: true, lot });
+  } catch (err) {
+    return res.status(500).json({ error: err?.message });
+  }
+});
+router.post("/lots/:id/gate-qa", async (req, res) => {
+  const { id } = req.params;
+  const lotIdNum = parseInt(String(id).replace(/\D/g, ""), 10) || 1;
+  req.body.lotId = lotIdNum;
+  req.body.qaPassed = true;
+  return router.handle({ ...req, url: "/escrow/release-qa", method: "POST" }, res);
+});
+var salvageRoutes_default = router;
+
 // server.ts
 dotenv.config();
 var app = express();
@@ -3112,7 +4035,13 @@ app.use((req, res, next) => {
   const matched = req.headers["x-matched-path"] || req.headers["x-forwarded-uri"];
   if (matched && matched.startsWith("/api")) {
     req.url = matched;
-  } else if (!req.url.startsWith("/api") && !req.url.startsWith("/_")) {
+    return next();
+  }
+  const isViteAsset = req.url.startsWith("/@") || req.url.startsWith("/src") || req.url.startsWith("/node_modules") || req.url.startsWith("/__") || req.url.startsWith("/_");
+  if (isViteAsset || req.url === "/") {
+    return next();
+  }
+  if (!req.url.startsWith("/api")) {
     req.url = "/api" + (req.url.startsWith("/") ? req.url : "/" + req.url);
   }
   next();
@@ -4237,8 +5166,8 @@ app.get("/api/categories", async (req, res) => {
 app.get("/api/subcategories", async (req, res) => {
   try {
     const { category, categoryId } = req.query;
-    let query = db.select().from(productSubcategories).orderBy(productSubcategories.name);
-    let results = await query;
+    let query2 = db.select().from(productSubcategories).orderBy(productSubcategories.name);
+    let results = await query2;
     if (categoryId) {
       results = results.filter((s) => s.categoryId === Number(categoryId));
     }
@@ -6070,13 +6999,13 @@ app.get("/api/ai/market-intelligence", async (req, res) => {
 app.post("/api/ai/agri-advisor", async (req, res) => {
   try {
     const {
-      query,
+      query: query2,
       crop = "All Crops",
       region = "Oromia / Rift Valley",
       soilType = "Clay Loam",
       lang = "en"
     } = req.body;
-    if (!query) {
+    if (!query2) {
       return res.status(400).json({ error: "Query is required" });
     }
     const ai = getGeminiClient();
@@ -6099,7 +7028,7 @@ Respond warmly and professionally in the requested language.`;
             role: "user",
             parts: [{ text: `${systemPrompt}
 
-Farmer Query: ${query}` }]
+Farmer Query: ${query2}` }]
           }
         ]
       });
@@ -6421,6 +7350,214 @@ app.get("/api/escrow/ledger", async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+var SALVAGE_LOTS = [
+  {
+    id: "lot-wonji-roma-01",
+    lotNumber: "SALV-882194",
+    farmerId: 1,
+    farmerName: "Ato Bekele Tadesse",
+    farmerOrg: "Wonji Horizon Cooperative Farms",
+    region: "Oromia",
+    locationDetails: "Wonji Gefersa Packhouse Hub #3",
+    commodity: "Roma Processing Tomatoes",
+    variety: "Heinz 1015 Hybrid",
+    category: "VEGETABLE",
+    lotWeightTons: 18.5,
+    lotWeightKg: 18500,
+    benchmarkPricePerKg: 85,
+    totalBenchmarkValue: 1572500,
+    harvestDate: new Date(Date.now() - 14 * 3600 * 1e3).toISOString().split("T")[0],
+    damageCauses: ["SUNSCALD", "SKIN_SPLITTING"],
+    defectPercentage: 38,
+    brixRating: 5.8,
+    acidityPh: 4.25,
+    initialShelfLifeHours: 48,
+    softRotOnsetHoursRemaining: 34,
+    imageUrl: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80",
+    industrialSuitability: {
+      recommendedProcesses: [
+        "Commercial Tomato Paste (Cold-Break 28-30 \xB0Bx)",
+        "Heavy Puree & Pasta Sauces",
+        "Standard Foodservice Ketchup Mash"
+      ],
+      matchScorePercent: 95,
+      scientificAssessment: "High total soluble solids (5.8\xB0Bx) and natural lycopene make this lot an exceptional yield substrate for industrial evaporation, paste, and ketchup cooking."
+    },
+    status: "BID_SUBMITTED",
+    createdAt: new Date(Date.now() - 12 * 3600 * 1e3).toISOString(),
+    bids: [
+      {
+        id: "bid-redgold-01",
+        lotId: "lot-wonji-roma-01",
+        processorId: "proc-redgold",
+        processorName: "Dr. Henok Haile",
+        processorOrg: "RedGold Foods & Puree Ltd.",
+        proposedDiscountPercent: 45,
+        offeredPricePerKg: 46.75,
+        totalOfferAmount: 864875,
+        factorySavings: 707625,
+        proposedDeliveryDate: "Immediate Reefer Dispatch",
+        plantLocation: "Dukem Industrial Park, Line #2",
+        intendedProduct: "Commercial Ketchup & Paste Mash",
+        notes: "Can accept full 18.5 MT lot immediately if delivered by 08:00 AM under 4\xB0C refrigeration.",
+        createdAt: new Date(Date.now() - 4 * 3600 * 1e3).toISOString(),
+        status: "SUBMITTED"
+      }
+    ],
+    activeNegotiation: {
+      id: "neg-01",
+      lotId: "lot-wonji-roma-01",
+      bidId: "bid-redgold-01",
+      initialDiscountPercent: 45,
+      currentDiscountPercent: 45,
+      unitPricePerKg: 46.75,
+      grossAmountEtb: 864875,
+      farmerIncrementalGain: 0,
+      factorySavingsEtb: 707625,
+      platformFeePercent: 2.5,
+      platformFeeEtb: 21622,
+      carrierEstimatedFeeEtb: 46250,
+      netFarmerPayoutEtb: 843253,
+      status: "PENDING_FARMER_ACTION",
+      updatedAt: new Date(Date.now() - 4 * 3600 * 1e3).toISOString(),
+      history: [
+        {
+          actor: "Dr. Henok Haile",
+          role: "PROCESSOR",
+          action: "Initial Discount Bid Submitted",
+          discountPercent: 45,
+          amountEtb: 864875,
+          timestamp: "4 hours ago",
+          notes: "45% discount proposed for ketchup and paste processing."
+        }
+      ]
+    }
+  },
+  {
+    id: "lot-ziway-san-marzano-02",
+    lotNumber: "SALV-901428",
+    farmerId: 2,
+    farmerName: "Almaz Desta",
+    farmerOrg: "Lakeside Ziway Producers Co-op",
+    region: "Oromia (Rift Valley)",
+    locationDetails: "Ziway Central Greenhouse Depot",
+    commodity: "San Marzano Processing Paste Tomatoes",
+    variety: "San Marzano Lampadina",
+    category: "VEGETABLE",
+    lotWeightTons: 24,
+    lotWeightKg: 24e3,
+    benchmarkPricePerKg: 90,
+    totalBenchmarkValue: 216e4,
+    harvestDate: new Date(Date.now() - 6 * 3600 * 1e3).toISOString().split("T")[0],
+    damageCauses: ["HAIL_MARKS", "TRANSIT_BRUISING"],
+    defectPercentage: 25,
+    brixRating: 6.2,
+    acidityPh: 4.18,
+    initialShelfLifeHours: 54,
+    softRotOnsetHoursRemaining: 48,
+    imageUrl: "https://images.unsplash.com/photo-1546094096-0df4bcaaa337?auto=format&fit=crop&w=600&q=80",
+    industrialSuitability: {
+      recommendedProcesses: ["Concentrated 30-32\xB0Bx Double Paste", "Whole Peeled Canning", "Export Pizza Sauce"],
+      matchScorePercent: 98,
+      scientificAssessment: "Superior pectin density, low moisture seed cavity, and 6.2\xB0Bx make this ideal for high-solids industrial concentration."
+    },
+    status: "OPEN_FOR_BIDS",
+    createdAt: new Date(Date.now() - 6 * 3600 * 1e3).toISOString(),
+    bids: []
+  },
+  {
+    id: "lot-upper-awash-citrus-03",
+    lotNumber: "SALV-744102",
+    farmerId: 3,
+    farmerName: "Worku Mengistu",
+    farmerOrg: "Upper Awash Agro-Industry Farms",
+    region: "Oromia / Afar Basin",
+    locationDetails: "Awash Valley Citrus Packhouse",
+    commodity: "Valencia Industrial Juice Oranges",
+    variety: "Valencia Late",
+    category: "FRUIT",
+    lotWeightTons: 12,
+    lotWeightKg: 12e3,
+    benchmarkPricePerKg: 65,
+    totalBenchmarkValue: 78e4,
+    harvestDate: new Date(Date.now() - 24 * 3600 * 1e3).toISOString().split("T")[0],
+    damageCauses: ["SUNSCALD", "IRREGULAR_SIZING"],
+    defectPercentage: 30,
+    brixRating: 11.2,
+    acidityPh: 3.4,
+    initialShelfLifeHours: 96,
+    softRotOnsetHoursRemaining: 72,
+    imageUrl: "https://images.unsplash.com/photo-1557800636-894a64c1696f?auto=format&fit=crop&w=600&q=80",
+    industrialSuitability: {
+      recommendedProcesses: ["Bulk Frozen Orange Juice Concentrate (FCOJ)", "Pectin Recovery", "Citrus Peel Oil"],
+      matchScorePercent: 94,
+      scientificAssessment: "Deep juice sacs and exceptional Brix-to-acid ratio (11.2\xB0Bx) bypass fresh consumer grading for immediate industrial centrifugal extraction."
+    },
+    status: "LOCKED_IN_ESCROW",
+    createdAt: new Date(Date.now() - 20 * 3600 * 1e3).toISOString(),
+    bids: [
+      {
+        id: "bid-citrus-01",
+        lotId: "lot-upper-awash-citrus-03",
+        processorId: "proc-great-rift",
+        processorName: "Tadesse Bekele",
+        processorOrg: "Great Rift Juice Processors Ltd.",
+        proposedDiscountPercent: 32,
+        offeredPricePerKg: 44.2,
+        totalOfferAmount: 530400,
+        factorySavings: 249600,
+        proposedDeliveryDate: "Dispatched in Reefer",
+        plantLocation: "Mojo Dry Port Processing Terminal",
+        intendedProduct: "FCOJ Concentrated Juice Barrels",
+        notes: "Terms agreed at 32% discount. Cold-chain reefer en route.",
+        createdAt: new Date(Date.now() - 8 * 3600 * 1e3).toISOString(),
+        status: "ACCEPTED"
+      }
+    ],
+    dispatchJob: {
+      id: "dispatch-reefer-77",
+      lotId: "lot-upper-awash-citrus-03",
+      carrierId: "carrier-swift",
+      carrierName: "Captain Yared Solomon",
+      carrierOrg: "SwiftReefer Cold-Chain Logistics",
+      carrierPhone: "+251 91 345 6789",
+      vehicleType: "TEMPERATURE_CONTROLLED_REEFER",
+      targetTempRange: "2\xB0C to 4\xB0C",
+      currentTempCelsius: 3.1,
+      currentHumidityPercent: 88,
+      originLocation: "Awash Valley Packhouse",
+      destinationPlant: "Mojo Dry Port Processing Terminal",
+      totalDistanceKm: 115,
+      transitMinutesRemaining: 45,
+      transitStatus: "IN_TRANSIT",
+      bolNumber: "eBOL-883921",
+      driverName: "Kenenisa Bekele",
+      plateNumber: "ET-3-88192-AA",
+      waypoints: [
+        { name: "Awash Valley Depot (Origin)", lat: 8.98, lng: 40.15, passed: true, time: "06:30 AM" },
+        { name: "Metehara Highway Checkpoint", lat: 8.89, lng: 39.91, passed: true, time: "07:15 AM" },
+        { name: "Adama Expressway Junction", lat: 8.54, lng: 39.27, passed: true, time: "08:00 AM" },
+        { name: "Mojo Processing Bay #2 (Destination)", lat: 8.59, lng: 39.12, passed: false }
+      ],
+      telematicsStream: [
+        { time: "07:00", temperatureCelsius: 3.4, humidityPercent: 89, batteryPercent: 98 },
+        { time: "07:30", temperatureCelsius: 3.2, humidityPercent: 88, batteryPercent: 97 },
+        { time: "08:00", temperatureCelsius: 3.1, humidityPercent: 88, batteryPercent: 96 }
+      ]
+    },
+    escrowVault: {
+      id: "vault-citrus-77",
+      lotId: "lot-upper-awash-citrus-03",
+      totalDepositedEtb: 560400,
+      farmerAllocationEtb: 517140,
+      carrierAllocationEtb: 3e4,
+      platformCommissionEtb: 13260,
+      escrowStatus: "FUNDS_LOCKED",
+      depositTransactionRef: "TX-CHAPA-AWASH-99214"
+    }
+  }
+];
+app.use("/api/salvage", salvageRoutes_default);
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
@@ -6433,10 +7570,10 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = path2.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      res.sendFile(path2.join(distPath, "index.html"));
     });
   }
   app.listen(PORT, "0.0.0.0", () => {

@@ -27,6 +27,7 @@ import { LogisticsHubPortal } from '../components/LogisticsHubPortal.tsx';
 
 import { InputMarketplaceView } from '../components/InputMarketplaceView.tsx';
 import { AdminPortal } from '../components/AdminPortal.tsx';
+import { SalvageExchange } from '../components/SalvageExchange.tsx';
 
 import { useAuth } from '../context/AuthContext.tsx';
 import { ProductCategory, Product } from '../types/index.ts';
@@ -78,6 +79,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<EthioDirectRegistration />} />
+      <Route path="/salvage" element={<SalvageExchange />} />
 
       {/* ── 2. Authenticated Dashboard Shell ────────────────────────── */}
       <Route element={<AuthGuard />}>

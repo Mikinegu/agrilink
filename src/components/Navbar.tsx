@@ -25,6 +25,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { User, UserRole } from '../types/index.ts';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
+import { LanguageSelector } from './LanguageSelector.tsx';
 
 interface NavbarProps {
   currentUser: User | null;
@@ -59,6 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogoutToGuest,
   onOpenCallCenter,
 }) => {
+  const { t } = useTranslation();
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
@@ -118,45 +121,55 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const ALL_NAV: Record<string, { id: string; label: string; isAi?: boolean }[]> = {
     FARMER: [
-      { id: 'farmer-portal', label: 'My Farm' },
-      { id: 'marketplace',   label: 'Market Prices' },
-      { id: 'finance',       label: 'Escrow & Finance' },
+      { id: 'farmer-portal', label: t.sidebar.farmFields },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'marketplace',   label: t.nav.marketplace },
+      { id: 'finance',       label: t.nav.finance },
     ],
     BUYER: [
-      { id: 'marketplace',   label: 'Marketplace' },
-      { id: 'procurement',   label: 'Buy Requests' },
-      { id: 'logistics',     label: 'Track Orders' },
+      { id: 'marketplace',   label: t.nav.marketplace },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'procurement',   label: t.sidebar.buyRequestsRfqs },
+      { id: 'logistics',     label: t.sidebar.ordersTracking },
     ],
     BUSINESS_BUYER: [
-      { id: 'marketplace',   label: 'Marketplace' },
-      { id: 'procurement',   label: 'Procurement' },
-      { id: 'logistics',     label: 'Track Orders' },
+      { id: 'marketplace',   label: t.nav.marketplace },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'procurement',   label: t.sidebar.procurementHub },
+      { id: 'logistics',     label: t.sidebar.activeShipments },
     ],
     INPUT_SUPPLIER: [
-      { id: 'inputs',        label: 'My Products' },
-      { id: 'marketplace',   label: 'Market' },
+      { id: 'inputs',        label: t.sidebar.inputCatalog },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'marketplace',   label: t.nav.marketplace },
     ],
     DRIVER: [
-      { id: 'logistics',     label: 'My Trips' },
+      { id: 'logistics',     label: t.sidebar.activeTrips },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
     ],
     LOGISTICS_ADMIN: [
-      { id: 'logistics',     label: 'Logistics Hub' },
+      { id: 'logistics',     label: t.sidebar.logisticsFleet },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
     ],
     HUB_OPERATOR: [
-      { id: 'logistics',     label: 'Hub Operations' },
+      { id: 'logistics',     label: t.sidebar.hubOperations },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
     ],
     FINANCIAL_INSTITUTION: [
-      { id: 'finance',       label: 'Credit & Finance' },
+      { id: 'finance',       label: t.sidebar.creditUnderwriting },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
     ],
     PLATFORM_ADMIN: [
-      { id: 'admin',         label: 'Admin' },
-      { id: 'marketplace',   label: 'Marketplace' },
-      { id: 'logistics',     label: 'Logistics' },
-      { id: 'finance',       label: 'Finance' },
+      { id: 'admin',         label: t.nav.admin },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'marketplace',   label: t.nav.marketplace },
+      { id: 'logistics',     label: t.nav.logistics },
+      { id: 'finance',       label: t.nav.finance },
     ],
     GUEST: [
-      { id: 'marketplace',   label: 'Market' },
-      { id: 'about',         label: 'About' },
+      { id: 'marketplace',   label: t.nav.marketplace },
+      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'about',         label: t.nav.about },
     ],
   };
 
@@ -170,12 +183,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     HUB_OPERATOR: [],
     FINANCIAL_INSTITUTION: [],
     PLATFORM_ADMIN: [
-      { id: 'intelligence', label: 'AI Agri-Intelligence', icon: Sparkles },
-      { id: 'about',        label: 'About',                icon: Globe },
+      { id: 'intelligence', label: t.nav.aiIntelligence, icon: Sparkles },
+      { id: 'about',        label: t.nav.about,          icon: Globe },
     ],
     GUEST: [
-      { id: 'intelligence', label: 'AI Agri-Intelligence', icon: Sparkles },
-      { id: 'about',        label: 'About',                icon: Globe },
+      { id: 'intelligence', label: t.nav.aiIntelligence, icon: Sparkles },
+      { id: 'about',        label: t.nav.about,          icon: Globe },
     ],
   };
 
@@ -319,6 +332,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Actions: Pro User Account / Sign In Trigger */}
           <div className="flex items-center gap-2">
+            {/* Language Switcher Dropdown */}
+            <LanguageSelector variant="compact" />
             
             {/* Conditional Display: Guest Mode vs Logged In Account */}
             {!currentUser ? (
@@ -328,10 +343,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     onClick={onOpenAuthModal}
                     className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                    title="Log in to your account"
+                    title={t.nav.login}
                   >
                     <LogIn className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>Log In</span>
+                    <span>{t.nav.login}</span>
                   </button>
                 )}
 
@@ -340,10 +355,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     onClick={onOpenRegister}
                     className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                    title="Create an AgriLink account"
+                    title={t.nav.register}
                   >
                     <UserPlus className="h-3.5 w-3.5" />
-                    <span>Register</span>
+                    <span>{t.nav.register}</span>
                   </button>
                 )}
               </div>
@@ -389,7 +404,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
 
                     <div className="px-4 py-2 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      Switch Organization / Profile
+                      {t.nav.switchProfile}
                     </div>
 
                     <div className="max-h-48 overflow-y-auto px-1">
@@ -416,7 +431,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             </div>
                           </div>
                           <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold border ${getRoleBadgeColor(u.role)}`}>
-                            {u.role.replace('_', ' ')}
+                            {t.roles[u.role as keyof typeof t.roles] || u.role.replace('_', ' ')}
                           </span>
                         </button>
                       ))}
@@ -433,7 +448,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           className="w-full py-1.5 px-3 rounded-xl border border-zinc-200 hover:border-emerald-600 text-zinc-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                         >
                           <UserPlus className="h-3.5 w-3.5 text-emerald-700" />
-                          <span>Register New Profile</span>
+                          <span>{t.nav.register}</span>
                         </button>
                       )}
 
@@ -446,7 +461,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           className="w-full py-2 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
                         >
                           <LogOut className="h-3.5 w-3.5 text-rose-400" />
-                          <span>Sign Out</span>
+                          <span>{t.nav.signOut}</span>
                         </button>
                       )}
                     </div>
@@ -492,25 +507,30 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-zinc-200 py-2 space-y-1 bg-white">
+            {/* Language Switcher in Mobile Drawer */}
+            <div className="px-1 py-1">
+              <LanguageSelector variant="expanded" />
+            </div>
+
             {onOpenAuthModal && (
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   onOpenAuthModal();
                 }}
-                className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold bg-emerald-700 text-white flex items-center gap-2 mb-2"
+                className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold bg-emerald-700 text-white flex items-center gap-2 mb-2 cursor-pointer"
               >
-                <LogIn className="h-4 w-4" /> Log In / Switch Account
+                <LogIn className="h-4 w-4" /> {t.nav.login}
               </button>
             )}
 
             <button
               onClick={() => handleNavClick('home')}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold ${
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
                 activeTab === 'home' ? 'bg-zinc-900 text-white' : 'text-zinc-700 hover:bg-zinc-50'
               }`}
             >
-              Home
+              {t.nav.home}
             </button>
             {[...coreNavItems, ...extraNavItems].map((item) => {
               const isActive = activeTab === item.id;
@@ -518,7 +538,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold ${
+                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
                     isActive ? 'bg-zinc-900 text-white' : 'text-zinc-700 hover:bg-zinc-50'
                   }`}
                 >
@@ -532,9 +552,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setMobileMenuOpen(false);
                   onOpenCallCenter();
                 }}
-                className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-800 bg-emerald-50 flex items-center gap-1.5 mt-1"
+                className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-800 bg-emerald-50 flex items-center gap-1.5 mt-1 cursor-pointer"
               >
-                <Phone className="h-3.5 w-3.5 text-emerald-600" /> Call Center & Support
+                <Phone className="h-3.5 w-3.5 text-emerald-600" /> {t.nav.callCenter}
               </button>
             )}
             {onOpenBrandModal && (

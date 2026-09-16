@@ -26,6 +26,7 @@ import {
   Smartphone,
   Tractor,
 } from 'lucide-react';
+import { BamlakSisayLogo, BesufkadAnbesLogo } from './FounderLogos.tsx';
 
 interface AboutPageProps {
   onNavigate: (tab: string) => void;
@@ -36,7 +37,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
     {
       name: 'Bamlak Sisay',
       role: 'Co-Founder & Product Lead',
-      initials: 'BS',
+      logo: <BamlakSisayLogo size={68} />,
       bgGradient: 'from-emerald-700 to-emerald-900',
       bio: 'Dedicated agricultural technologist and entrepreneur with deep expertise in digital commerce and value-chain modernizations across Ethiopia. Bamlak drives the product roadmap, merchant escrow frameworks, and partnerships with agricultural unions and commercial buyers across East Africa.',
       credentials: 'Agro-Tech Entrepreneur & Digital Ecosystem Architect',
@@ -45,7 +46,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
     {
       name: 'Besufkad Anbes',
       role: 'Co-Founder & Systems Architect',
-      initials: 'BA',
+      logo: <BesufkadAnbesLogo size={68} />,
       bgGradient: 'from-blue-700 to-blue-900',
       bio: 'Software engineer and distributed systems specialist focused on financial technologies, digital payment gateways, and high-throughput B2B settlement engines. Besufkad leads platform engineering, cold-chain IoT tracking, and bank API integrations.',
       credentials: 'Fintech & Scaled Distributed Systems Engineer',
@@ -301,9 +302,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${founder.bgGradient} text-white flex items-center justify-center text-xl font-black shadow-md`}>
-                    {founder.initials}
-                  </div>
+                  {founder.logo}
                   <a
                     href={founder.linkedin}
                     target="_blank"

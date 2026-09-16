@@ -9,6 +9,7 @@ import { CallCenterModal } from './components/CallCenterModal.tsx';
 import { ActionToast, ToastMessage } from './components/ActionToast.tsx';
 import { OrderConfirmationModal } from './components/OrderConfirmationModal.tsx';
 import { AgriLinkSurveyModal } from './components/AgriLinkSurveyModal.tsx';
+import { LanguageProvider } from './i18n/LanguageContext.tsx';
 import { Product, ProductCategory, CartItem, Notification } from './types/index.ts';
 
 function AppContent() {
@@ -297,9 +298,11 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

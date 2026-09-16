@@ -1574,19 +1574,64 @@ app.get('/api/products', async (req, res) => {
     }
 
     if (search) {
-      const q = String(search).toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.variety && p.variety.toLowerCase().includes(q)) ||
-          (p.subcategory && p.subcategory.toLowerCase().includes(q)) ||
-          p.description.toLowerCase().includes(q) ||
-          (p.farmerName && p.farmerName.toLowerCase().includes(q)) ||
-          (p.region && p.region.toLowerCase().includes(q)) ||
-          (p.farmLocation && p.farmLocation.toLowerCase().includes(q)) ||
-          (p.zone && p.zone.toLowerCase().includes(q)) ||
-          (p.categoryName && p.categoryName.toLowerCase().includes(q))
-      );
+      const q = String(search).toLowerCase().trim();
+      const multilingualSearchMap: Record<string, string[]> = {
+        'ጤፍ': ['teff', 'magna'],
+        'ማግና': ['magna', 'teff'],
+        'ቡና': ['coffee', 'yirgacheffe', 'sidama'],
+        'ይርጋጨፌ': ['yirgacheffe', 'coffee'],
+        'ሽንብራ': ['chickpea'],
+        'አቮካዶ': ['avocado', 'hass'],
+        'ቦሎቄ': ['kidney bean', 'bean'],
+        'ማር': ['honey'],
+        'ቅቤ': ['butter'],
+        'በግ': ['sheep', 'highland'],
+        'በርበሬ': ['berbere', 'pepper'],
+        'ሽንኩርት': ['onion', 'shallot'],
+        'ቲማቲም': ['tomato', 'roma'],
+        'ስንዴ': ['wheat'],
+        'ገብስ': ['barley'],
+        'በቆሎ': ['maize', 'corn'],
+        'xaafii': ['teff', 'magna'],
+        'maagnaa': ['magna', 'teff'],
+        'buna': ['coffee', 'yirgacheffe', 'sidama'],
+        'yirgaacaffee': ['yirgacheffe', 'coffee'],
+        'shumburaa': ['chickpea'],
+        'avokaadoo': ['avocado', 'hass'],
+        'boloqqee': ['kidney bean', 'bean'],
+        'damma': ['honey'],
+        'dhadhaa': ['butter'],
+        'hoolaa': ['sheep', 'highland'],
+        'barbaree': ['berbere', 'pepper'],
+        'qullubbii': ['onion', 'shallot'],
+        'timaatima': ['tomato', 'roma'],
+        'qamadii': ['wheat'],
+        'garbuu': ['barley'],
+        'boqqoolloo': ['maize', 'corn'],
+      };
+
+      const searchTerms = [q];
+      for (const [key, aliases] of Object.entries(multilingualSearchMap)) {
+        if (q.includes(key.toLowerCase())) {
+          searchTerms.push(...aliases);
+        }
+      }
+
+      filtered = filtered.filter((p) => {
+        const textToSearch = [
+          p.name,
+          p.variety,
+          p.subcategory,
+          p.description,
+          p.farmerName,
+          p.region,
+          p.farmLocation,
+          p.zone,
+          p.categoryName,
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        return searchTerms.some((term) => textToSearch.includes(term.toLowerCase()));
+      });
     }
 
     if (grade) {

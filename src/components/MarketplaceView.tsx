@@ -34,6 +34,7 @@ import {
   Info,
 } from 'lucide-react';
 import { Product, ProductCategory, ProductSubcategory } from '../types/index.ts';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
 
 interface MarketplaceViewProps {
   categories: ProductCategory[];
@@ -46,6 +47,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   onSelectProduct,
   onAddToCart,
 }) => {
+  const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [subcategories, setSubcategories] = useState<ProductSubcategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,20 +64,6 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   const [liveAnimalOnly, setLiveAnimalOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'recommended' | 'newest' | 'price_asc' | 'price_desc' | 'rating' | 'harvest_recent'>('recommended');
   const [addedItemMap, setAddedItemMap] = useState<{ [id: number]: boolean }>({});
-
-  // Quick search keywords
-  const popularKeywords = [
-    'Magna Teff',
-    'Yirgacheffe Coffee',
-    'Kabuli Chickpeas',
-    'Hass Avocado',
-    'Red Kidney Beans',
-    'White Honey',
-    'Fresh Butter',
-    'Live Highland Sheep',
-    'Berbere Mix',
-    'Shallot Onion',
-  ];
 
   // Fetch Subcategories
   useEffect(() => {
@@ -184,13 +172,13 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
 
         <div className="relative z-10 max-w-3xl">
           <div className="flex items-center gap-2 text-emerald-300 text-xs font-black uppercase tracking-wider mb-2">
-            <Sparkles className="h-4 w-4 text-emerald-400" /> Complete Agricultural Marketplace
+            <Sparkles className="h-4 w-4 text-emerald-400" /> {t.marketplace.headerBadge}
           </div>
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
-            Source Certified Food & Agricultural Commodities
+            {t.marketplace.headerTitle}
           </h1>
           <p className="text-xs sm:text-sm text-emerald-100/90 mt-2 leading-relaxed">
-            Trade directly with verified Ethiopian farmers, commercial outgrower estates, and producer cooperatives across 13 major food & agricultural categories with batch traceability.
+            {t.marketplace.headerSubtitle}
           </p>
 
           {/* Search bar */}
@@ -199,7 +187,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Search Teff, Chickpeas, Roma Tomatoes, Yirgacheffe Coffee, Butter, Live Sheep..."
+                placeholder={t.marketplace.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-10 py-3 bg-white/95 text-zinc-900 placeholder:text-zinc-500 rounded-2xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-inner"
@@ -208,7 +196,8 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 p-1"
+                  title={t.marketplace.clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 p-1 cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -218,25 +207,25 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
               type="submit"
               className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs sm:text-sm font-black shadow-lg cursor-pointer transition-all hover:scale-102 flex items-center justify-center gap-2"
             >
-              <Search className="h-4 w-4" /> Search Marketplace
+              <Search className="h-4 w-4" /> {t.marketplace.searchButton}
             </button>
           </form>
 
           {/* Popular Tag Chips */}
           <div className="mt-4 flex items-center gap-1.5 flex-wrap text-xs text-emerald-200">
-            <span className="font-bold text-emerald-400">Popular:</span>
-            {popularKeywords.map((kw) => (
+            <span className="font-bold text-emerald-400">{t.marketplace.popularLabel}</span>
+            {t.marketplace.popularKeywords.map((kw) => (
               <button
-                key={kw}
+                key={kw.label}
                 type="button"
                 onClick={() => {
-                  setSearchQuery(kw);
+                  setSearchQuery(kw.label);
                   setSelectedCategory('all');
                   setSelectedSubcategory('all');
                 }}
                 className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-100 text-[11px] font-medium transition-colors cursor-pointer backdrop-blur-xs"
               >
-                {kw}
+                {kw.label}
               </button>
             ))}
           </div>

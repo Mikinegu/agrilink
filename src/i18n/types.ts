@@ -184,7 +184,14 @@ export interface TranslationDictionary {
   marketplace: {
     title: string;
     subtitle: string;
+    headerBadge: string;
+    headerTitle: string;
+    headerSubtitle: string;
     searchPlaceholder: string;
+    searchButton: string;
+    clearSearch: string;
+    popularLabel: string;
+    popularKeywords: Array<{ label: string; query: string }>;
     allCategories: string;
     filterByGrade: string;
     filterByRegion: string;

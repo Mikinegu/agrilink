@@ -12,10 +12,12 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { Order } from '../types/index.ts';
 
 export const BuyerOrders: React.FC = () => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -69,11 +71,27 @@ export const BuyerOrders: React.FC = () => {
 
   const displayOrders = orders.length > 0 ? orders : (defaultMockOrders as any);
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'DELIVERED':
+      case 'COMPLETED':
+        return t.buyerWorkspace.statusDelivered;
+      case 'IN_TRANSIT':
+      case 'PICKED_UP':
+        return t.buyerWorkspace.statusInTransit;
+      case 'CONFIRMED':
+      case 'DRIVER_ASSIGNED':
+        return t.buyerWorkspace.statusDispatched;
+      default:
+        return t.buyerWorkspace.statusProcessing;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Purchase Orders & Shipments</h1>
-        <p className="text-sm text-zinc-500">Track logistics dispatch, freight transit, and delivery inspection receipts.</p>
+        <h1 className="text-2xl font-black text-zinc-900 tracking-tight">{t.buyerWorkspace.ordersTitle}</h1>
+        <p className="text-sm text-zinc-500">{t.buyerWorkspace.ordersSubtitle}</p>
       </div>
 
       <div className="space-y-4">
@@ -112,12 +130,12 @@ export const BuyerOrders: React.FC = () => {
                             : 'bg-amber-50 text-amber-700 border-amber-200'
                         }`}
                       >
-                        {order.orderStatus?.replace(/_/g, ' ') || 'PROCESSING'}
+                        {getStatusLabel(order.orderStatus)}
                       </span>
                     </div>
                     <p className="text-xs text-zinc-400 mt-1 flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5" />
-                      <span>Placed on {new Date(order.createdAt).toLocaleDateString()}</span>
+                      <span>{new Date(order.createdAt).toLocaleDateString()}</span>
                       <span>•</span>
                       <MapPin className="h-3.5 w-3.5" />
                       <span className="truncate max-w-xs">{order.deliveryAddress || 'Addis Ababa'}</span>
@@ -128,9 +146,9 @@ export const BuyerOrders: React.FC = () => {
                 <div className="flex items-center justify-between md:justify-end gap-6 pt-3 md:pt-0 border-t md:border-t-0 border-zinc-100">
                   <div className="text-left md:text-right">
                     <span className="text-base font-black text-zinc-950">
-                      {Number(order.totalAmountEtb || 0).toLocaleString()} ETB
+                      {Number(order.grandTotalEtb || order.totalAmountEtb || 0).toLocaleString()} {t.common.currency}
                     </span>
-                    <p className="text-xs font-semibold text-emerald-600">Escrow Protected</p>
+                    <p className="text-xs font-semibold text-emerald-600">{t.adminPortal.escrowProtected}</p>
                   </div>
                   {isExpanded ? (
                     <ChevronUp className="h-5 w-5 text-zinc-400" />
@@ -144,21 +162,46 @@ export const BuyerOrders: React.FC = () => {
                 <div className="px-5 pb-5 pt-2 border-t border-zinc-100 bg-zinc-50/40 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                     <div className="p-3 bg-white rounded-xl border border-zinc-200">
-                      <span className="font-bold text-zinc-500 block mb-1">Logistics & Driver</span>
-                      <p className="font-semibold text-zinc-800">{order.driverName || 'Designated Regional Carrier'}</p>
-                      <p className="text-zinc-400 mt-0.5">Model: {order.deliveryModel || 'Direct Farm Pickup'}</p>
+                      <span className="font-bold text-zinc-500 block mb-1">{t.logisticsWorkspace.thDriverVehicle}</span>
+                      <p className="font-semibold text-zinc-800">{order.driverName || 'Dawit Kebede (Isuzu NPR 3.5T)'}</p>
+                      <p className="text-zinc-400 mt-0.5">
+                        {order.deliveryModel === 'HUB_CROSS_DOCK' ? t.buyerWorkspace.deliveryModelHub : t.buyerWorkspace.deliveryModelDirect}
+                      </p>
                     </div>
                     <div className="p-3 bg-white rounded-xl border border-zinc-200">
-                      <span className="font-bold text-zinc-500 block mb-1">Estimated Arrival</span>
+                      <span className="font-bold text-zinc-500 block mb-1">{t.buyerWorkspace.estArrivalPrefix}</span>
                       <p className="font-semibold text-zinc-800">{order.estimatedArrival || 'Within 24-48 hours'}</p>
-                      <p className="text-emerald-600 font-medium mt-0.5">GPS Monitored Corridor</p>
+                      <p className="text-emerald-600 font-medium mt-0.5">{t.buyer.trackShipmentsTitle}</p>
                     </div>
                     <div className="p-3 bg-white rounded-xl border border-zinc-200">
-                      <span className="font-bold text-zinc-500 block mb-1">Quality Inspection</span>
-                      <p className="font-semibold text-zinc-800">Pre-inspected at farm gate</p>
-                      <p className="text-zinc-400 mt-0.5">Grade 1 standard confirmed</p>
+                      <span className="font-bold text-zinc-500 block mb-1">{t.adminPortal.customerDeliveryDetails}</span>
+                      <p className="font-semibold text-zinc-800">{order.deliveryAddress || 'Addis Ababa'}</p>
+                      <p className="text-zinc-400 mt-0.5">Recipient: {order.deliveryContactName || 'Verified Buyer'}</p>
                     </div>
                   </div>
+
+                  {/* Real Line Items */}
+                  {order.items && order.items.length > 0 && (
+                    <div className="bg-white rounded-xl border border-zinc-200 p-3.5 space-y-2">
+                      <span className="font-bold text-zinc-800 block text-xs">Ordered Agricultural Consignment Batches:</span>
+                      <div className="divide-y divide-zinc-100 text-xs">
+                        {order.items.map((item: any, iIdx: number) => (
+                          <div key={iIdx} className="py-2 flex justify-between items-center">
+                            <div>
+                              <span className="font-bold text-zinc-900">{item.name}</span>
+                              <span className="text-[11px] text-zinc-400 block">{item.grade} • Lot #{item.lotBatchNumber || 'LOT-AUTO'}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-bold text-zinc-900">{item.quantity} {item.unit}</span>
+                              <span className="text-[11px] text-emerald-700 font-mono block font-bold">
+                                {Number(item.subtotalEtb || 0).toLocaleString()} ETB
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

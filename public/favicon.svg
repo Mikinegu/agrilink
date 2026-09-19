@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#022c22" />
+      <stop offset="50%" stop-color="#064e3b" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="goldSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#eab308" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+    <linearGradient id="sproutGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#6ee7b7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Squircle Shield -->
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bgGrad)" stroke="url(#goldSheen)" stroke-width="1.8" />
+
+  <!-- Inner Subtle Grid -->
+  <rect x="6" y="6" width="52" height="52" rx="12" stroke="#10b981" stroke-opacity="0.3" stroke-width="0.8" stroke-dasharray="3 2" />
+
+  <!-- Central Sprout Node Symbol -->
+  <path d="M32 46 V26" stroke="url(#goldSheen)" stroke-width="2.5" stroke-linecap="round" />
+  
+  <!-- Left Leaf -->
+  <path d="M32 36 C24 36 20 28 20 22 C26 22 32 26 32 36 Z" fill="url(#sproutGrad)" />
+  
+  <!-- Right Leaf -->
+  <path d="M32 30 C38 30 44 24 44 18 C38 18 32 22 32 30 Z" fill="url(#sproutGrad)" />
+
+  <!-- Crown Node Star -->
+  <circle cx="32" cy="18" r="2.5" fill="#fef08a" />
+  <circle cx="32" cy="47" r="2" fill="#eab308" />
+</svg>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import agrilinkLogo from '../assets/images/agrilink_logo_1787551924489.jpg';
+import { AgriLinkLogo } from './AgriLinkLogo.tsx';
 import {
   ShoppingCart,
   Bell,
@@ -121,54 +121,62 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const ALL_NAV: Record<string, { id: string; label: string; isAi?: boolean }[]> = {
     FARMER: [
-      { id: 'farmer-portal', label: t.sidebar.farmFields },
-      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
-      { id: 'marketplace',   label: t.nav.marketplace },
-      { id: 'finance',       label: t.nav.finance },
+      { id: 'farmer-dashboard', label: t.sidebar.farmerOverview },
+      { id: 'farmer-listings',  label: t.sidebar.harvestListings },
+      { id: 'farmer-farms',     label: t.sidebar.farmFields },
+      { id: 'farmer-escrow',    label: t.sidebar.escrowWallet },
+      { id: 'farmer-finance',   label: t.sidebar.agriCreditLoans },
     ],
     BUYER: [
-      { id: 'marketplace',   label: t.nav.marketplace },
-      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
-      { id: 'procurement',   label: t.sidebar.buyRequestsRfqs },
-      { id: 'logistics',     label: t.sidebar.ordersTracking },
+      { id: 'buyer-dashboard',   label: t.sidebar.buyerOverview },
+      { id: 'marketplace',       label: t.nav.marketplace },
+      { id: 'procurement',       label: t.sidebar.buyRequestsRfqs },
+      { id: 'buyer-orders',      label: t.sidebar.ordersTracking },
+      { id: 'buyer-escrow',      label: t.sidebar.escrowManager },
     ],
     BUSINESS_BUYER: [
-      { id: 'marketplace',   label: t.nav.marketplace },
-      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
-      { id: 'procurement',   label: t.sidebar.procurementHub },
-      { id: 'logistics',     label: t.sidebar.activeShipments },
+      { id: 'buyer-dashboard',   label: t.sidebar.procurementHub },
+      { id: 'marketplace',       label: t.nav.marketplace },
+      { id: 'procurement',       label: t.sidebar.contractRequests },
+      { id: 'buyer-orders',      label: t.sidebar.activeShipments },
+      { id: 'buyer-escrow',      label: t.sidebar.escrowManager },
     ],
     INPUT_SUPPLIER: [
-      { id: 'inputs',        label: t.sidebar.inputCatalog },
-      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
-      { id: 'marketplace',   label: t.nav.marketplace },
+      { id: 'supplier-dashboard', label: t.sidebar.supplierDashboard },
+      { id: 'inputs',             label: t.sidebar.inputCatalog },
     ],
     DRIVER: [
-      { id: 'logistics',     label: t.sidebar.activeTrips },
-      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'driver-dashboard',   label: t.sidebar.driverDashboard },
+      { id: 'loadboard',          label: t.sidebar.availableLoads },
+      { id: 'active-trips',       label: t.sidebar.activeTrips },
+      { id: 'earnings',           label: t.sidebar.tripEarnings },
     ],
     LOGISTICS_ADMIN: [
-      { id: 'logistics',     label: t.sidebar.logisticsFleet },
-      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'logistics-dashboard', label: t.sidebar.logisticsFleet },
+      { id: 'loadboard',           label: t.sidebar.loadBoard },
+      { id: 'active-trips',        label: t.sidebar.dispatchTrips },
+      { id: 'earnings',            label: t.sidebar.fleetRevenue },
     ],
     HUB_OPERATOR: [
-      { id: 'logistics',     label: t.sidebar.hubOperations },
-      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'hub-dashboard',      label: t.sidebar.hubOperations },
+      { id: 'loadboard',          label: t.sidebar.crossDockLoads },
+      { id: 'active-trips',       label: t.sidebar.activeShipments },
     ],
     FINANCIAL_INSTITUTION: [
-      { id: 'finance',       label: t.sidebar.creditUnderwriting },
-      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'finance-dashboard',    label: t.sidebar.creditUnderwriting },
+      { id: 'finance-applications', label: t.sidebar.loanApplications },
     ],
     PLATFORM_ADMIN: [
-      { id: 'admin',         label: t.nav.admin },
-      { id: 'salvage',       label: 'Salvage Exchange ⚡' },
-      { id: 'marketplace',   label: t.nav.marketplace },
-      { id: 'logistics',     label: t.nav.logistics },
-      { id: 'finance',       label: t.nav.finance },
+      { id: 'admin-overview',     label: t.sidebar.executiveOverview },
+      { id: 'admin-users',        label: t.sidebar.usersKyb },
+      { id: 'admin-orders',       label: t.sidebar.ordersLogistics },
+      { id: 'admin-finance',      label: t.sidebar.creditAppraisalDesk },
+      { id: 'innovation',         label: 'Innovation (4 Pillars) 🔬' },
     ],
     GUEST: [
       { id: 'marketplace',   label: t.nav.marketplace },
       { id: 'salvage',       label: 'Salvage Exchange ⚡' },
+      { id: 'innovation',    label: 'Core Innovation Engine (4 Pillars) 🔬' },
       { id: 'about',         label: t.nav.about },
     ],
   };
@@ -219,35 +227,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           
           {/* Logo & Brand Name */}
           <div className="flex items-center gap-3 sm:gap-6">
-            <div className="flex items-center gap-2">
-              {/* Clickable Logo */}
-              <button
-                onClick={() => {
-                  if (onOpenBrandModal) onOpenBrandModal();
-                  else handleNavClick('home');
-                }}
-                className="relative cursor-pointer group shrink-0"
-                title="View AgriLink Logo & Official Brand"
-              >
-                <img
-                  src={agrilinkLogo}
-                  alt="AgriLink Emblem"
-                  className="h-8 w-8 sm:h-9 sm:w-9 rounded-full object-cover border border-emerald-600 shadow-xs group-hover:ring-2 group-hover:ring-emerald-400 transition-all"
-                  referrerPolicy="no-referrer"
-                />
-              </button>
-
-              {/* Minimal Brand Name */}
-              <button
-                onClick={() => handleNavClick('home')}
-                className="flex items-center gap-1 text-left cursor-pointer group"
-                title="Go to Home"
-              >
-                <span className="text-base sm:text-lg font-black tracking-tight text-zinc-950 group-hover:text-emerald-800 transition-colors">
-                  AGRI<span className="text-emerald-700">LINK</span>
-                </span>
-              </button>
-            </div>
+            <AgriLinkLogo
+              size="sm"
+              theme="light"
+              badgeText="ETHIOPIA"
+              onClick={() => {
+                if (onOpenBrandModal) onOpenBrandModal();
+                else handleNavClick('home');
+              }}
+            />
 
             {/* Desktop Clean Nav Items */}
             <nav className="hidden lg:flex items-center gap-1">
@@ -403,39 +391,72 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </div>
 
-                    <div className="px-4 py-2 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      {t.nav.switchProfile}
-                    </div>
+                    {/* If Super Admin, allow persona switching; otherwise lock to user's classified workspace */}
+                    {currentUser.role === 'PLATFORM_ADMIN' ? (
+                      <>
+                        <div className="px-4 py-2 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                          {t.nav.switchProfile}
+                        </div>
 
-                    <div className="max-h-48 overflow-y-auto px-1">
-                      {allUsers.map((u) => (
+                        <div className="max-h-48 overflow-y-auto px-1">
+                          {allUsers.map((u) => (
+                            <button
+                              key={u.id}
+                              onClick={() => {
+                                onSwitchUser(u.id);
+                                setRoleDropdownOpen(false);
+                              }}
+                              className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between hover:bg-emerald-50/60 transition-colors cursor-pointer ${
+                                currentUser?.id === u.id ? 'bg-emerald-50/90 font-bold text-emerald-950' : 'text-zinc-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <img
+                                  src={u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80'}
+                                  alt={u.fullName}
+                                  className="h-6 w-6 rounded-full object-cover shrink-0"
+                                />
+                                <div>
+                                  <p className="text-xs font-bold leading-none">{u.fullName}</p>
+                                  <p className="text-[10px] text-zinc-400 mt-0.5">{u.organizationName || u.region}</p>
+                                </div>
+                              </div>
+                              <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold border ${getRoleBadgeColor(u.role)}`}>
+                                {t.roles[u.role as keyof typeof t.roles] || u.role.replace('_', ' ')}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-3">
+                        <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/80 mb-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                            {t.common.actions === 'እርምጃዎች' ? 'የተመደበ የስራ ቦታ' : 'Classified Workspace'}
+                          </p>
+                          <p className="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                            {t.roles[currentUser.role as keyof typeof t.roles] || currentUser.role}
+                          </p>
+                        </div>
                         <button
-                          key={u.id}
                           onClick={() => {
-                            onSwitchUser(u.id);
                             setRoleDropdownOpen(false);
+                            handleNavClick(
+                              currentUser.role === 'FARMER' ? 'farmer-dashboard'
+                              : currentUser.role === 'BUYER' || currentUser.role === 'BUSINESS_BUYER' ? 'buyer-dashboard'
+                              : currentUser.role === 'INPUT_SUPPLIER' ? 'supplier-dashboard'
+                              : currentUser.role === 'FINANCIAL_INSTITUTION' ? 'finance-dashboard'
+                              : 'logistics-dashboard'
+                            );
                           }}
-                          className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between hover:bg-emerald-50/60 transition-colors cursor-pointer ${
-                            currentUser?.id === u.id ? 'bg-emerald-50/90 font-bold text-emerald-950' : 'text-zinc-700'
-                          }`}
+                          className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-colors"
                         >
-                          <div className="flex items-center gap-2">
-                            <img
-                              src={u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80'}
-                              alt={u.fullName}
-                              className="h-6 w-6 rounded-full object-cover shrink-0"
-                            />
-                            <div>
-                              <p className="text-xs font-bold leading-none">{u.fullName}</p>
-                              <p className="text-[10px] text-zinc-400 mt-0.5">{u.organizationName || u.region}</p>
-                            </div>
-                          </div>
-                          <span className={`px-1.5 py-0.2 rounded text-[8px] font-bold border ${getRoleBadgeColor(u.role)}`}>
-                            {t.roles[u.role as keyof typeof t.roles] || u.role.replace('_', ' ')}
-                          </span>
+                          <Sprout className="h-3.5 w-3.5" />
+                          <span>{t.common.actions === 'እርምጃዎች' ? 'ወደ ስራ ቦታዬ ግባ' : 'Enter My Workspace'}</span>
                         </button>
-                      ))}
-                    </div>
+                      </div>
+                    )}
 
                     {/* Account Settings & Sign Out */}
                     <div className="p-2 border-t border-zinc-100 space-y-1.5">
@@ -484,14 +505,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Cart Button */}
-            <button
-              onClick={onOpenCart}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-colors cursor-pointer"
-            >
-              <ShoppingCart className="h-3.5 w-3.5" />
-              <span>{cartItemCount}</span>
-            </button>
+            {/* Cart Button (Visible only to buyers, guests, or platform admins) */}
+            {(!currentUser || currentUser.role === 'BUYER' || currentUser.role === 'BUSINESS_BUYER' || currentUser.role === 'PLATFORM_ADMIN') && (
+              <button
+                onClick={onOpenCart}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-colors cursor-pointer"
+                title="Procurement Cart"
+              >
+                <ShoppingCart className="h-3.5 w-3.5" />
+                <span>{cartItemCount}</span>
+              </button>
+            )}
 
             {/* Mobile Menu */}
             <button

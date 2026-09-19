@@ -7,16 +7,20 @@ interface LanguageSelectorProps {
   variant?: 'compact' | 'pill' | 'expanded';
   className?: string;
   dropdownAlign?: 'left' | 'right';
+  theme?: 'light' | 'dark';
 }
 
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   variant = 'compact',
   className = '',
   dropdownAlign = 'right',
+  theme = 'light',
 }) => {
   const { currentLanguage, setLanguage, t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const isDark = theme === 'dark';
 
   const currentOption =
     SUPPORTED_LANGUAGES.find((opt) => opt.code === currentLanguage) || SUPPORTED_LANGUAGES[0];
@@ -47,16 +51,20 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-zinc-200 hover:border-zinc-300 bg-white hover:bg-zinc-50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 transition-all cursor-pointer shadow-2xs"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-2xs ${
+            isDark
+              ? 'border-white/20 bg-white/10 hover:bg-white/20 text-white'
+              : 'border-zinc-200 hover:border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 hover:text-zinc-950'
+          }`}
           title={t.nav.selectLanguage}
           aria-haspopup="true"
           aria-expanded={isOpen}
         >
-          <Globe className="h-3.5 w-3.5 text-emerald-600" />
+          <Globe className="h-3.5 w-3.5 text-emerald-400" />
           <span className="hidden sm:inline-block font-medium">{currentOption.nativeLabel}</span>
           <span className="sm:hidden font-bold uppercase text-[11px]">{currentOption.code}</span>
           <ChevronDown
-            className={`h-3 w-3 text-zinc-400 transition-transform duration-200 ${
+            className={`h-3 w-3 transition-transform duration-200 ${isDark ? 'text-zinc-300' : 'text-zinc-400'} ${
               isOpen ? 'rotate-180' : ''
             }`}
           />
@@ -67,13 +75,17 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 text-xs font-medium transition-colors cursor-pointer"
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer border ${
+            isDark
+              ? 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+              : 'bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 border-transparent'
+          }`}
           title={t.nav.selectLanguage}
         >
           <span className="text-sm">{currentOption.flag}</span>
           <span>{currentOption.nativeLabel}</span>
           <ChevronDown
-            className={`h-3 w-3 text-zinc-500 transition-transform duration-200 ${
+            className={`h-3 w-3 transition-transform duration-200 ${isDark ? 'text-zinc-300' : 'text-zinc-500'} ${
               isOpen ? 'rotate-180' : ''
             }`}
           />

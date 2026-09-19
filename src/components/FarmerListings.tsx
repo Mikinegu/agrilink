@@ -16,10 +16,12 @@ import {
   Filter,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { Product, ProductCategory } from '../types/index.ts';
 
 export const FarmerListings: React.FC = () => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,9 +186,9 @@ export const FarmerListings: React.FC = () => {
       {/* Header & Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Harvest Listings & Inventory</h1>
+          <h1 className="text-2xl font-black text-zinc-900 tracking-tight">{t.farmerWorkspace.listingsTitle}</h1>
           <p className="text-sm text-zinc-500">
-            Publish, edit pricing, and manage produce batches open for commercial buyer procurement.
+            {t.farmerWorkspace.listingsSubtitle}
           </p>
         </div>
 
@@ -195,7 +197,7 @@ export const FarmerListings: React.FC = () => {
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition-all hover:scale-102 cursor-pointer shrink-0"
         >
           <Plus className="h-4 w-4" />
-          <span>Add Harvest Batch</span>
+          <span>{t.farmerWorkspace.addBatchBtn}</span>
         </button>
       </div>
 
@@ -223,12 +225,12 @@ export const FarmerListings: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search listings by crop name, variety, or grade..."
+            placeholder={t.farmerWorkspace.searchPlaceholder}
             className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-50 rounded-xl border border-zinc-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
           />
         </div>
         <span className="text-xs font-bold text-zinc-500 px-2 shrink-0">
-          Showing {filtered.length} of {products.length} batches
+          {t.farmerWorkspace.showingBatchesPrefix} {filtered.length} {t.farmerWorkspace.showingBatchesOf} {products.length} {t.farmerWorkspace.showingBatchesSuffix}
         </span>
       </div>
 
@@ -238,11 +240,11 @@ export const FarmerListings: React.FC = () => {
           <table className="w-full text-left text-sm text-zinc-600">
             <thead className="bg-zinc-50 border-b border-zinc-200 text-xs font-bold uppercase tracking-wider text-zinc-500">
               <tr>
-                <th className="py-3.5 px-4">Produce Details</th>
-                <th className="py-3.5 px-4">Grade & Origin</th>
-                <th className="py-3.5 px-4">Available Qty</th>
-                <th className="py-3.5 px-4">Price (ETB)</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4">{t.farmerWorkspace.thProduceDetails}</th>
+                <th className="py-3.5 px-4">{t.farmerWorkspace.thGradeOrigin}</th>
+                <th className="py-3.5 px-4">{t.farmerWorkspace.thAvailableQty}</th>
+                <th className="py-3.5 px-4">{t.farmerWorkspace.thPriceEtb}</th>
+                <th className="py-3.5 px-4 text-right">{t.farmerWorkspace.thActions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -295,11 +297,11 @@ export const FarmerListings: React.FC = () => {
                             onChange={(e) => setEditPrice(e.target.value)}
                             className="w-20 px-2 py-1 text-sm bg-white border border-emerald-500 rounded-lg outline-none"
                           />
-                          <span className="text-xs text-zinc-400">ETB</span>
+                          <span className="text-xs text-zinc-400">{t.common.currency}</span>
                         </div>
                       ) : (
                         <span className="font-black text-zinc-950 text-sm">
-                          {p.pricePerUnitEtb} <span className="text-xs font-bold text-zinc-400">ETB</span>
+                          {p.pricePerUnitEtb} <span className="text-xs font-bold text-zinc-400">{t.common.currency}</span>
                         </span>
                       )}
                     </td>
@@ -309,14 +311,14 @@ export const FarmerListings: React.FC = () => {
                           <button
                             onClick={() => handleSaveInline(p.id)}
                             className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
-                            title="Save Changes"
+                            title={t.farmerWorkspace.inlineSave}
                           >
                             <Check className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => setEditingId(null)}
                             className="p-1.5 rounded-lg bg-zinc-200 text-zinc-600 hover:bg-zinc-300 cursor-pointer"
-                            title="Cancel"
+                            title={t.farmerWorkspace.inlineCancel}
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -330,14 +332,14 @@ export const FarmerListings: React.FC = () => {
                               setEditQty(String(p.availableQuantity));
                             }}
                             className="p-2 rounded-lg text-zinc-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
-                            title="Edit Price & Qty"
+                            title={t.farmerWorkspace.inlineEdit}
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteListing(p.id)}
                             className="p-2 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                            title="Delete Batch"
+                            title={t.farmerWorkspace.inlineDelete}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -351,7 +353,7 @@ export const FarmerListings: React.FC = () => {
               {filtered.length === 0 && !loading && (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-zinc-500">
-                    No harvest listings match your query.
+                    {t.farmer.noBatches}
                   </td>
                 </tr>
               )}
@@ -366,8 +368,8 @@ export const FarmerListings: React.FC = () => {
           <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
               <div>
-                <h2 className="text-xl font-bold text-zinc-900">List New Harvest Batch</h2>
-                <p className="text-xs text-zinc-500">Provide harvest specifications for buyer trade settlement</p>
+                <h2 className="text-xl font-bold text-zinc-900">{t.farmerWorkspace.addModalTitle}</h2>
+                <p className="text-xs text-zinc-500">{t.farmerWorkspace.listingsSubtitle}</p>
               </div>
               <button onClick={() => setShowAddModal(false)} className="p-2 rounded-xl text-zinc-400 hover:bg-zinc-100">
                 <X className="h-5 w-5" />
@@ -376,11 +378,11 @@ export const FarmerListings: React.FC = () => {
 
             <form onSubmit={handleCreateListing} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">Produce / Crop Name *</label>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">{t.farmerWorkspace.cropNameLabel} *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Magna White Teff, Hass Avocado, Roma Tomatoes"
+                  placeholder={t.farmerWorkspace.cropNamePlaceholder}
                   value={newProd.name}
                   onChange={(e) => setNewProd({ ...newProd, name: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -389,7 +391,7 @@ export const FarmerListings: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Category</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">{t.farmerWorkspace.categoryLabel}</label>
                   <select
                     value={newProd.categoryId}
                     onChange={(e) => setNewProd({ ...newProd, categoryId: e.target.value })}
@@ -403,7 +405,7 @@ export const FarmerListings: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Quality Grade</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">{t.farmerWorkspace.gradeLabel}</label>
                   <select
                     value={newProd.grade}
                     onChange={(e) => setNewProd({ ...newProd, grade: e.target.value })}
@@ -419,7 +421,7 @@ export const FarmerListings: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Price (ETB) *</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">{t.farmerWorkspace.unitPriceLabel} *</label>
                   <input
                     type="number"
                     required
@@ -430,7 +432,7 @@ export const FarmerListings: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Unit</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">{t.farmerWorkspace.unitLabel}</label>
                   <select
                     value={newProd.unit}
                     onChange={(e) => setNewProd({ ...newProd, unit: e.target.value })}
@@ -443,7 +445,7 @@ export const FarmerListings: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Available Qty *</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">{t.farmerWorkspace.availableQtyLabel} *</label>
                   <input
                     type="number"
                     required
@@ -457,7 +459,7 @@ export const FarmerListings: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Farm Location / Region</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">{t.farmerWorkspace.farmLocationLabel}</label>
                   <input
                     type="text"
                     value={newProd.farmLocation}
@@ -466,7 +468,7 @@ export const FarmerListings: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Harvest Date</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">{t.farmerWorkspace.harvestDateLabel}</label>
                   <input
                     type="date"
                     value={newProd.harvestDate}
@@ -485,7 +487,7 @@ export const FarmerListings: React.FC = () => {
                   className="rounded text-emerald-600 focus:ring-emerald-500"
                 />
                 <label htmlFor="isOrganic" className="text-xs font-semibold text-zinc-700">
-                  Certified Organic Produce
+                  {t.farmerWorkspace.organicCertificationLabel}
                 </label>
               </div>
 
@@ -495,13 +497,13 @@ export const FarmerListings: React.FC = () => {
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2.5 rounded-xl text-sm font-semibold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
                 >
-                  Cancel
+                  {t.farmerWorkspace.cancelBtn}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/20 cursor-pointer"
                 >
-                  Publish Listing
+                  {t.farmerWorkspace.publishBatchBtn}
                 </button>
               </div>
             </form>

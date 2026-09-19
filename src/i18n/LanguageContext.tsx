@@ -75,16 +75,15 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Deep-merge current dictionary with English fallback to ensure 0 undefined properties
   const activeDictionary = useMemo<TranslationDictionary>(() => {
     const raw = TRANSLATION_MAP[currentLanguage] || en;
-    return {
-      common: { ...en.common, ...raw.common },
-      nav: { ...en.nav, ...raw.nav },
-      roles: { ...en.roles, ...raw.roles },
-      sidebar: { ...en.sidebar, ...raw.sidebar },
-      home: { ...en.home, ...raw.home },
-      marketplace: { ...en.marketplace, ...raw.marketplace },
-      escrow: { ...en.escrow, ...raw.escrow },
-      auth: { ...en.auth, ...raw.auth },
-    };
+    const merged: any = {};
+    for (const key of Object.keys(en)) {
+      if (typeof (en as any)[key] === 'object' && (en as any)[key] !== null) {
+        merged[key] = { ...(en as any)[key], ...(raw as any)[key] };
+      } else {
+        merged[key] = (raw as any)[key] !== undefined ? (raw as any)[key] : (en as any)[key];
+      }
+    }
+    return merged as TranslationDictionary;
   }, [currentLanguage]);
 
   const translate = (path: string, fallback?: string): string => {

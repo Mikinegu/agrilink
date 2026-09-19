@@ -28,6 +28,7 @@ import { LogisticsHubPortal } from '../components/LogisticsHubPortal.tsx';
 import { InputMarketplaceView } from '../components/InputMarketplaceView.tsx';
 import { AdminPortal } from '../components/AdminPortal.tsx';
 import { SalvageExchange } from '../components/SalvageExchange.tsx';
+import { AgrilinkInnovationPillars } from '../components/AgrilinkInnovationPillars.tsx';
 
 import { useAuth } from '../context/AuthContext.tsx';
 import { ProductCategory, Product } from '../types/index.ts';
@@ -42,6 +43,7 @@ interface AppRouterProps {
   unreadNotifsCount: number;
   onOpenNotifs: () => void;
   onOpenCallCenter?: () => void;
+  onDirectPay?: (product: Product) => void;
 }
 
 export const AppRouter: React.FC<AppRouterProps> = ({
@@ -54,6 +56,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
   unreadNotifsCount,
   onOpenNotifs,
   onOpenCallCenter,
+  onDirectPay,
 }) => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -80,6 +83,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<EthioDirectRegistration />} />
       <Route path="/salvage" element={<SalvageExchange />} />
+      <Route path="/innovation" element={<AgrilinkInnovationPillars />} />
 
       {/* ── 2. Authenticated Dashboard Shell ────────────────────────── */}
       <Route element={<AuthGuard />}>
@@ -126,6 +130,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
                   categories={categories}
                   onSelectProduct={onSelectProduct}
                   onAddToCart={onAddToCart}
+                  onDirectPay={onDirectPay}
                 />
               }
             />

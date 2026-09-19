@@ -409,6 +409,72 @@ export const payments = pgTable('payments', {
   transRefIdx: index('payments_trans_ref_idx').on(table.transactionRef),
 }));
 
+export const paymentProofs = pgTable('payment_proofs', {
+  id: text('id').primaryKey(),
+  orderId: text('order_id').notNull(),
+  payerId: text('payer_id').notNull(),
+  paymentMethod: text('payment_method').notNull(), // TELEBIRR_MANUAL, CBE_BIRR, CBE_MOBILE_BANKING, AWASH_BIRR, BANK_OF_ABYSSINIA, CHAPA_GATEWAY
+  transactionNumber: text('transaction_number').notNull(),
+  normalizedTxId: text('normalized_tx_id').notNull().unique(),
+  receiptImageUrl: text('receipt_image_url').notNull(),
+  receiptImageHash: text('receipt_image_hash').notNull().unique(),
+  claimedAmountEtb: doublePrecision('claimed_amount_etb').notNull(),
+  extractedAmountEtb: doublePrecision('extracted_amount_etb'),
+  extractedReceiverName: text('extracted_receiver_name'),
+  extractedTimestamp: timestamp('extracted_timestamp'),
+  isTxUnique: boolean('is_tx_unique').default(true),
+  isAmountMatched: boolean('is_amount_matched').default(false),
+  isReceiverVerified: boolean('is_receiver_verified').default(false),
+  fraudRiskScore: doublePrecision('fraud_risk_score').default(0.0),
+  fraudReasons: jsonb('fraud_reasons').default([]),
+  status: text('status').default('PENDING_AUDIT'), // PENDING_AUDIT, OCR_CONFIRMED, FLAGGED_SUSPICIOUS, ADMIN_APPROVED, REJECTED
+  reviewedByAdminId: text('reviewed_by_admin_id'),
+  adminNotes: text('admin_notes'),
+  rejectionReason: text('rejection_reason'),
+  createdAt: timestamp('created_at').defaultNow(),
+  verifiedAt: timestamp('verified_at'),
+}, (table) => ({
+  normalizedTxIdx: index('payment_proofs_normalized_tx_idx').on(table.normalizedTxId),
+  receiptHashIdx: index('payment_proofs_receipt_hash_idx').on(table.receiptImageHash),
+  statusMethodCreatedIdx: index('payment_proofs_status_method_idx').on(table.status, table.paymentMethod, table.createdAt),
+}));
+
+export const platformPaymentEndpoints = pgTable('platform_payment_endpoints', {
+  id: text('id').primaryKey(),
+  rail: text('rail').notNull(),
+  accountOrMerchantName: text('account_or_merchant_name').notNull(),
+  accountNumber: text('account_number').notNull(),
+  branchOrBankName: text('branch_or_bank_name'),
+  instructionsAm: text('instructions_am'),
+  instructionsEn: text('instructions_en'),
+  qrCodeImageUrl: text('qr_code_image_url'),
+  isActive: boolean('is_active').default(true),
+});
+
+export const paymentProofSubmissions = pgTable('payment_proof_submissions', {
+  id: text('id').primaryKey(),
+  orderId: text('order_id').notNull(),
+  payerId: text('payer_id').notNull(),
+  rail: text('rail').notNull(),
+  txReferenceNumber: text('tx_reference_number'),
+  normalizedRef: text('normalized_ref').unique(),
+  receiptImageUrl: text('receipt_image_url'),
+  receiptImageSha256: text('receipt_image_sha256').unique(),
+  expectedAmountEtb: doublePrecision('expected_amount_etb').notNull(),
+  claimedAmountEtb: doublePrecision('claimed_amount_etb').notNull(),
+  detectedAmountEtb: doublePrecision('detected_amount_etb'),
+  verificationFlow: text('verification_flow').default('MANUAL_PROOF_SUBMITTED'),
+  rejectionCode: text('rejection_code'),
+  adminReviewedBy: text('admin_reviewed_by'),
+  adminNotes: text('admin_notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+  settledAt: timestamp('settled_at'),
+}, (table) => ({
+  normalizedRefIdx: index('payment_proof_submissions_normalized_ref_idx').on(table.normalizedRef),
+  receiptShaIdx: index('payment_proof_submissions_sha256_idx').on(table.receiptImageSha256),
+  flowRailCreatedIdx: index('payment_proof_submissions_flow_rail_idx').on(table.verificationFlow, table.rail, table.createdAt),
+}));
+
 // ==========================================
 // 10. DELIVERIES & TRACKING
 // ==========================================

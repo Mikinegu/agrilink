@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { CheckCircle2, ShoppingBag, ArrowRight, X, AlertCircle, Sparkles, Truck, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, ArrowRight, X, AlertCircle, Sparkles } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
 
 export interface ToastMessage {
   id: string;
@@ -10,6 +11,9 @@ export interface ToastMessage {
   actionLabel?: string;
   onAction?: () => void;
   duration?: number;
+  titleKey?: string;
+  descriptionKey?: string;
+  actionLabelKey?: string;
 }
 
 interface ActionToastProps {
@@ -19,7 +23,11 @@ interface ActionToastProps {
 
 export const ActionToast: React.FC<ActionToastProps> = ({ toasts, onDismiss }) => {
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-3 sm:px-0">
+    <div
+      className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-3 sm:px-0"
+      role="region"
+      aria-live="polite"
+    >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={() => onDismiss(toast.id)} />
       ))}
@@ -28,6 +36,8 @@ export const ActionToast: React.FC<ActionToastProps> = ({ toasts, onDismiss }) =
 };
 
 const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({ toast, onDismiss }) => {
+  const { t, translate } = useTranslation();
+
   useEffect(() => {
     const timer = setTimeout(() => {
       onDismiss();
@@ -35,6 +45,42 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({ t
 
     return () => clearTimeout(timer);
   }, [toast, onDismiss]);
+
+  const getBadgeLabel = () => {
+    switch (toast.type) {
+      case 'cart':
+        return t.toast.cartUpdated;
+      case 'success':
+        return t.toast.actionConfirmed;
+      case 'error':
+        return t.toast.systemAlert;
+      case 'info':
+        return t.toast.systemNotification;
+      default:
+        return t.toast.systemAction;
+    }
+  };
+
+  const getDisplayTitle = () => {
+    if (toast.titleKey) return translate(toast.titleKey, toast.title);
+    if (toast.title === 'Added to Procurement Cart') return t.toast.itemAddedTitle;
+    if (toast.title === 'Item Removed') return t.toast.itemRemovedTitle;
+    if (toast.title === 'Cart Cleared') return t.toast.cartClearedTitle;
+    if (toast.title === 'Order Confirmed & Escrow Locked!') return t.toast.orderConfirmedTitle;
+    return toast.title;
+  };
+
+  const getDisplayDescription = () => {
+    if (toast.descriptionKey) return translate(toast.descriptionKey, toast.description);
+    if (toast.description === 'Cart updated successfully.') return t.toast.itemRemovedDesc;
+    if (toast.description === 'All items removed from procurement basket.') return t.toast.cartClearedDesc;
+    return toast.description;
+  };
+
+  const getDisplayActionLabel = () => {
+    if (toast.actionLabelKey) return translate(toast.actionLabelKey, toast.actionLabel);
+    return toast.actionLabel;
+  };
 
   return (
     <div className="pointer-events-auto bg-zinc-950/95 text-white rounded-2xl p-4 shadow-2xl border border-zinc-800 backdrop-blur-md animate-in slide-in-from-bottom-5 duration-200 flex items-start gap-3 relative overflow-hidden group">
@@ -81,12 +127,12 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({ t
       <div className="flex-1 min-w-0 pr-4">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-            {toast.type === 'cart' ? 'Order Cart Updated' : 'System Action'}
+            {getBadgeLabel()}
           </span>
         </div>
-        <h4 className="text-xs font-bold text-white leading-snug truncate mt-0.5">{toast.title}</h4>
+        <h4 className="text-xs font-bold text-white leading-snug truncate mt-0.5">{getDisplayTitle()}</h4>
         {toast.description && (
-          <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">{toast.description}</p>
+          <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">{getDisplayDescription()}</p>
         )}
 
         {toast.actionLabel && toast.onAction && (
@@ -97,7 +143,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({ t
             }}
             className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-black cursor-pointer transition-all shadow-xs"
           >
-            <span>{toast.actionLabel}</span>
+            <span>{getDisplayActionLabel()}</span>
             <ArrowRight className="h-3 w-3" />
           </button>
         )}
@@ -106,6 +152,8 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({ t
       {/* Close button */}
       <button
         onClick={onDismiss}
+        aria-label={t.common.close}
+        title={t.common.close}
         className="absolute top-2.5 right-2.5 text-zinc-500 hover:text-white transition-colors p-1 cursor-pointer"
       >
         <X className="h-3.5 w-3.5" />
@@ -121,3 +169,4 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({ t
     </div>
   );
 };
+

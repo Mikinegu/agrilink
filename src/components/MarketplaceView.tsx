@@ -32,6 +32,7 @@ import {
   X,
   ChevronRight,
   Info,
+  Zap,
 } from 'lucide-react';
 import { Product, ProductCategory, ProductSubcategory } from '../types/index.ts';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
@@ -40,12 +41,14 @@ interface MarketplaceViewProps {
   categories: ProductCategory[];
   onSelectProduct: (product: Product) => void;
   onAddToCart: (product: Product, quantity: number) => void;
+  onDirectPay?: (product: Product) => void;
 }
 
 export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   categories,
   onSelectProduct,
   onAddToCart,
+  onDirectPay,
 }) => {
   const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
@@ -668,17 +671,35 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
                       </span>
                     </div>
 
-                    <button
-                      onClick={(e) => handleQuickAdd(p, e)}
-                      className={`p-2.5 rounded-2xl font-black transition-all shadow-xs flex items-center justify-center cursor-pointer ${
-                        isJustAdded
-                          ? 'bg-emerald-800 text-white scale-105'
-                          : 'bg-emerald-50 hover:bg-emerald-700 text-emerald-800 hover:text-white border border-emerald-200 hover:border-emerald-700'
-                      }`}
-                      title="Add to Cart"
-                    >
-                      {isJustAdded ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onDirectPay) {
+                            onDirectPay(p);
+                          } else {
+                            onSelectProduct(p);
+                          }
+                        }}
+                        className="px-2.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-[11px] shadow-xs hover:shadow-md flex items-center gap-1 transition-all cursor-pointer"
+                        title="Pay Directly & Lock Escrow"
+                      >
+                        <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
+                        <span>{t.realPayment.payDirectlyBtn.split(' ')[0] || 'Pay Direct'}</span>
+                      </button>
+
+                      <button
+                        onClick={(e) => handleQuickAdd(p, e)}
+                        className={`p-2 rounded-xl font-black transition-all shadow-xs flex items-center justify-center cursor-pointer ${
+                          isJustAdded
+                            ? 'bg-emerald-800 text-white scale-105'
+                            : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200'
+                        }`}
+                        title="Add to Cart"
+                      >
+                        {isJustAdded ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

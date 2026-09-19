@@ -23,6 +23,7 @@ import {
   X,
   ExternalLink,
 } from 'lucide-react';
+import { AgriLinkLogo } from './AgriLinkLogo.tsx';
 import { UserRole } from '../types/index.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
@@ -79,12 +80,10 @@ export const getTranslatedSidebarConfig = (t: TranslationDictionary): Record<Use
   INPUT_SUPPLIER: [
     { label: t.sidebar.supplierDashboard, path: '/supplier/dashboard', icon: LayoutDashboard },
     { label: t.sidebar.inputCatalog, path: '/supplier/products', icon: Boxes },
-    { label: t.sidebar.produceMarketplace, path: '/buyer/marketplace', icon: ShoppingBag },
   ],
   FINANCIAL_INSTITUTION: [
     { label: t.sidebar.creditUnderwriting, path: '/finance/dashboard', icon: LayoutDashboard },
     { label: t.sidebar.loanApplications, path: '/finance/applications', icon: Landmark },
-    { label: t.sidebar.escrowWallet, path: '/farmer/escrow', icon: ShieldCheck },
   ],
   PLATFORM_ADMIN: [
     { label: t.sidebar.executiveOverview, path: '/admin/overview', icon: LayoutDashboard },
@@ -152,12 +151,10 @@ export const SIDEBAR_CONFIG: Record<UserRole, SidebarItem[]> = {
   INPUT_SUPPLIER: [
     { label: 'Supplier Dashboard', path: '/supplier/dashboard', icon: LayoutDashboard },
     { label: 'Input Catalog', path: '/supplier/products', icon: Boxes },
-    { label: 'Produce Marketplace', path: '/buyer/marketplace', icon: ShoppingBag },
   ],
   FINANCIAL_INSTITUTION: [
     { label: 'Credit Underwriting', path: '/finance/dashboard', icon: LayoutDashboard },
     { label: 'Loan Applications', path: '/finance/applications', icon: Landmark },
-    { label: 'Escrow Ledger', path: '/farmer/escrow', icon: ShieldCheck },
   ],
   PLATFORM_ADMIN: [
     { label: 'Executive Overview', path: '/admin/overview', icon: LayoutDashboard },
@@ -204,17 +201,8 @@ export const DynamicSidebar: React.FC = () => {
     <div className="flex flex-col h-full bg-white border-r border-zinc-200 text-zinc-900 shadow-sm w-72 select-none">
       {/* Brand Header */}
       <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
-        <NavLink to="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-700 to-emerald-500 flex items-center justify-center text-white shadow-md shadow-emerald-700/20 group-hover:scale-105 transition-transform">
-            <Sprout className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-lg text-zinc-950 tracking-tight">AgriLink</span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-widest">ET</span>
-            </div>
-            <p className="text-[11px] font-medium text-zinc-500">National B2B Ecosystem</p>
-          </div>
+        <NavLink to="/" className="inline-flex">
+          <AgriLinkLogo size="sm" theme="light" badgeText="ET" subtext="National B2B Ecosystem" />
         </NavLink>
         {mobileOpen && (
           <button
@@ -279,21 +267,6 @@ export const DynamicSidebar: React.FC = () => {
         })}
       </nav>
 
-      {/* Public Marketplace Quick-Link for non-buyers who want to view live prices */}
-      {role === 'FARMER' && (
-        <div className="px-3 pb-2">
-          <NavLink
-            to="/buyer/marketplace"
-            className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 transition-colors border border-dashed border-zinc-200"
-          >
-            <span className="flex items-center gap-2">
-              <ShoppingBag className="h-3.5 w-3.5 text-zinc-400" />
-              {t.sidebar.produceMarketplace}
-            </span>
-            <ExternalLink className="h-3 w-3 text-zinc-400" />
-          </NavLink>
-        </div>
-      )}
 
       {/* Salvage Exchange Quick Entry */}
       <div className="px-3 pb-2">

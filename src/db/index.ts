@@ -339,6 +339,72 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS payment_proofs (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  order_id TEXT NOT NULL,
+  payer_id TEXT NOT NULL,
+  payment_method TEXT NOT NULL,
+  transaction_number VARCHAR(100) NOT NULL,
+  normalized_tx_id VARCHAR(100) NOT NULL UNIQUE,
+  receipt_image_url TEXT NOT NULL,
+  receipt_image_hash VARCHAR(64) NOT NULL UNIQUE,
+  claimed_amount_etb DOUBLE PRECISION NOT NULL,
+  extracted_amount_etb DOUBLE PRECISION,
+  extracted_receiver_name VARCHAR(150),
+  extracted_timestamp TIMESTAMPTZ,
+  is_tx_unique BOOLEAN DEFAULT TRUE,
+  is_amount_matched BOOLEAN DEFAULT FALSE,
+  is_receiver_verified BOOLEAN DEFAULT FALSE,
+  fraud_risk_score DOUBLE PRECISION DEFAULT 0.00,
+  fraud_reasons JSONB DEFAULT '[]'::jsonb,
+  status TEXT DEFAULT 'PENDING_AUDIT',
+  reviewed_by_admin_id TEXT,
+  admin_notes TEXT,
+  rejection_reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  verified_at TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_normalized_tx ON payment_proofs (normalized_tx_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_receipt_hash ON payment_proofs (receipt_image_hash);
+CREATE INDEX IF NOT EXISTS idx_pending_proofs ON payment_proofs (status, payment_method, created_at);
+
+CREATE TABLE IF NOT EXISTS platform_payment_endpoints (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  rail TEXT NOT NULL,
+  account_or_merchant_name VARCHAR(120) NOT NULL,
+  account_number VARCHAR(100) NOT NULL,
+  branch_or_bank_name VARCHAR(100),
+  instructions_am TEXT,
+  instructions_en TEXT,
+  qr_code_image_url TEXT,
+  is_active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS payment_proof_submissions (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  order_id TEXT NOT NULL,
+  payer_id TEXT NOT NULL,
+  rail TEXT NOT NULL,
+  tx_reference_number VARCHAR(100),
+  normalized_ref VARCHAR(100) UNIQUE,
+  receipt_image_url TEXT,
+  receipt_image_sha256 VARCHAR(64) UNIQUE,
+  expected_amount_etb DOUBLE PRECISION NOT NULL,
+  claimed_amount_etb DOUBLE PRECISION NOT NULL,
+  detected_amount_etb DOUBLE PRECISION,
+  verification_flow TEXT DEFAULT 'MANUAL_PROOF_SUBMITTED',
+  rejection_code VARCHAR(50),
+  admin_reviewed_by TEXT,
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  settled_at TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_proof_sub_normalized ON payment_proof_submissions (normalized_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_proof_sub_sha256 ON payment_proof_submissions (receipt_image_sha256);
+CREATE INDEX IF NOT EXISTS idx_proof_sub_flow ON payment_proof_submissions (verification_flow, rail, created_at);
+
 CREATE TABLE IF NOT EXISTS deliveries (
   id SERIAL PRIMARY KEY,
   order_id INTEGER NOT NULL UNIQUE,

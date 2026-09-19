@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ExchangeRole,
   DistressedLot,
@@ -26,6 +27,7 @@ import {
   RefreshCw,
   Eye,
   ArrowRight,
+  Flame,
 } from 'lucide-react';
 
 // Baseline authentic seed lots for instant demonstration
@@ -241,6 +243,7 @@ export const INITIAL_SEED_LOTS: DistressedLot[] = [
 ];
 
 export const SalvageExchange: React.FC = () => {
+  const navigate = useNavigate();
   // Global Persona & View State
   const [currentRole, setCurrentRole] = useState<ExchangeRole>('FARMER');
   const [activeTab, setActiveTab] = useState<'inventory' | 'sourcing' | 'logistics' | 'escrow'>('inventory');
@@ -666,6 +669,32 @@ export const SalvageExchange: React.FC = () => {
               >
                 <PlusCircle className="h-4 w-4" />
                 <span>Report Distressed Harvest</span>
+              </button>
+            </div>
+
+            {/* Dynamic Degradation Math Banner */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-emerald-950 text-white border border-emerald-500/40 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                  <Flame className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs sm:text-sm text-white">Dynamic Degradation Pricing Function Active</span>
+                    <span className="font-mono text-2xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">P(t) = P_min + (P_base − P_min) · e^(−λ·t·θ)</span>
+                  </div>
+                  <p className="text-2xs sm:text-xs text-zinc-400 mt-0.5">
+                    Real-time valuation adjusted per ambient thermal exposure (θ = T/20°C) across 4 automated tiers (Fresh Direct, Markdown, Industrial Salvage, Bio-circular).
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate('/innovation')}
+                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer shadow-md"
+              >
+                <span>Inspect Math & Tiers</span>
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
 

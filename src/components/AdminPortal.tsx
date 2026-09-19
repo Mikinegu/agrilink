@@ -35,8 +35,17 @@ import {
   Tag,
   UserCheck,
   CircleDot,
+  Volume2,
+  VolumeX,
+  Download,
+  Zap,
+  Snowflake,
+  Bot,
+  Radio,
 } from 'lucide-react';
 import { User, Order, Payment, Product } from '../types/index.ts';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
+import { LanguageSelector } from './LanguageSelector.tsx';
 
 interface AdminPortalProps {
   currentUser: User | null;
@@ -47,6 +56,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   currentUser,
   onRefreshAll,
 }) => {
+  const { t } = useTranslation();
   const [activeSubTab, setActiveSubTab] = useState<'orders' | 'payments' | 'produce' | 'users' | 'analytics'>('orders');
   const [metrics, setMetrics] = useState<any>(null);
   const [ordersList, setOrdersList] = useState<Order[]>([]);
@@ -57,6 +67,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [seeding, setSeeding] = useState(false);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
 
+  // Smart AI & Automation State
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [aiInsights, setAiInsights] = useState<any>(null);
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+
+  // Admin Presence & Autonomous AI Payment Controller ("Admin Away Protocol")
+  const [aiControllerStatus, setAiControllerStatus] = useState<any>(null);
+  const [presenceUpdating, setPresenceUpdating] = useState(false);
+  const [rejectModalPayment, setRejectModalPayment] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [selectedAuditLog, setSelectedAuditLog] = useState<any | null>(null);
+  const [actionInProgressId, setActionInProgressId] = useState<number | null>(null);
+  const [showAiAuditDrawer, setShowAiAuditDrawer] = useState(false);
+
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
@@ -65,37 +89,98 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Selected Order for Detail Modal
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [invoiceModalOrder, setInvoiceModalOrder] = useState<Order | null>(null);
+  const [lastOrderCount, setLastOrderCount] = useState<number>(0);
 
-  const fetchAdminData = async () => {
-    setLoading(true);
+  // Web Audio API Order Alert Chime (synthesized pleasant 2-tone melodic frequency)
+  const playOrderChime = () => {
+    if (!soundEnabled) return;
     try {
-      const [ovRes, ordRes, payRes, usrRes, prodRes] = await Promise.all([
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+      osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15); // E6
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.45);
+    } catch {
+      // Audio playback prevented by browser autoplay policy until user interaction
+    }
+  };
+
+  const fetchAdminData = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
+    try {
+      const [ovRes, ordRes, payRes, usrRes, prodRes, aiRes, aiCtrlRes] = await Promise.all([
         fetch('/api/admin/overview'),
         fetch('/api/admin/orders'),
         fetch('/api/admin/payments'),
         fetch('/api/auth/users'),
         fetch('/api/products'),
+        fetch('/api/admin/ai-insights'),
+        fetch('/api/admin/ai-controller/status'),
       ]);
 
       if (ovRes.ok) setMetrics(await ovRes.json());
-      if (ordRes.ok) setOrdersList(await ordRes.json());
+      if (ordRes.ok) {
+        const freshOrders = await ordRes.json();
+        setOrdersList(freshOrders);
+        if (lastOrderCount > 0 && freshOrders.length > lastOrderCount) {
+          const newest = freshOrders[0];
+          playOrderChime();
+          showFeedback(`⚡ New Order Received! #${newest.orderNumber} (${newest.grandTotalEtb?.toLocaleString()} ETB)`);
+        }
+        setLastOrderCount(freshOrders.length);
+      }
       if (payRes.ok) setPaymentsList(await payRes.json());
       if (usrRes.ok) setAllUsers(await usrRes.json());
       if (prodRes.ok) setProductsList(await prodRes.json());
+      if (aiRes.ok) setAiInsights(await aiRes.json());
+      if (aiCtrlRes && aiCtrlRes.ok) setAiControllerStatus(await aiCtrlRes.json());
     } catch (err) {
       console.error('Failed to load admin overview:', err);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
+  // Real-time Admin Heartbeat: signals admin presence while browser tab is active
   useEffect(() => {
-    fetchAdminData();
+    const sendHeartbeat = async () => {
+      try {
+        await fetch('/api/admin/ai-controller/heartbeat', { method: 'POST' });
+      } catch {}
+    };
+    sendHeartbeat();
+
+    const interval = setInterval(sendHeartbeat, 15000); // Heartbeat every 15s
+    window.addEventListener('focus', sendHeartbeat);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', sendHeartbeat);
+    };
   }, []);
+
+  useEffect(() => {
+    fetchAdminData(false);
+
+    // Real-time background sync polling every 6 seconds
+    const interval = setInterval(() => {
+      fetchAdminData(true);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [lastOrderCount, soundEnabled]);
 
   const showFeedback = (msg: string) => {
     setActionSuccessMsg(msg);
-    setTimeout(() => setActionSuccessMsg(null), 4000);
+    setTimeout(() => setActionSuccessMsg(null), 5000);
   };
 
   const handleSeedDatabase = async () => {
@@ -117,6 +202,138 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } finally {
       setSeeding(false);
     }
+  };
+
+  // Smart 1-Click Auto Dispatch Single Order
+  const handleAutoDispatch = async (orderId: number) => {
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/auto-dispatch`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`⚡ Smart Auto-Dispatched #${data.order.orderNumber} via ${data.corridor} with Driver ${data.driver?.fullName || 'Assigned Carrier'}!`);
+        await fetchAdminData();
+        if (selectedOrder && selectedOrder.id === orderId) {
+          setSelectedOrder(data.order);
+        }
+      } else {
+        showFeedback(data.error || 'Failed to auto-dispatch order');
+      }
+    } catch (err) {
+      console.error('Auto dispatch error:', err);
+    }
+  };
+
+  // Smart Batch Auto Dispatch All Eligible Pending Orders
+  const handleBatchDispatch = async () => {
+    const eligibleCount = ordersList.filter(
+      (o) => o.orderStatus === 'CONFIRMED' || o.orderStatus === 'PREPARING' || o.orderStatus === 'READY_FOR_PICKUP'
+    ).length;
+
+    if (eligibleCount === 0) {
+      showFeedback('No pending orders requiring dispatch right now.');
+      return;
+    }
+
+    if (!confirm(`Execute Smart 1-Click Auto-Dispatch for all ${eligibleCount} confirmed customer orders?`)) return;
+
+    setIsBatchProcessing(true);
+    try {
+      const res = await fetch('/api/admin/orders/batch-dispatch', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(data.message || `Successfully dispatched ${data.count} orders!`);
+        await fetchAdminData();
+      }
+    } catch (err) {
+      console.error('Batch dispatch error:', err);
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  // Smart Batch Release Escrow Payouts for Delivered Orders
+  const handleBatchReleaseEscrow = async () => {
+    const deliveredCount = ordersList.filter(
+      (o) => o.orderStatus === 'DELIVERED' && o.paymentStatus !== 'RELEASED_TO_FARMER'
+    ).length;
+
+    if (deliveredCount === 0) {
+      showFeedback('All delivered orders have already had escrow released to farmers.');
+      return;
+    }
+
+    if (!confirm(`Settle escrow payout for all ${deliveredCount} delivered orders and release funds to farmers?`)) return;
+
+    setIsBatchProcessing(true);
+    try {
+      const res = await fetch('/api/admin/orders/batch-release-escrow', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(data.message || `Released escrow for ${data.count} orders!`);
+        await fetchAdminData();
+      }
+    } catch (err) {
+      console.error('Batch escrow error:', err);
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  // Export Filtered Orders as Clean CSV Spreadsheet
+  const handleExportCsv = () => {
+    if (filteredOrders.length === 0) {
+      showFeedback('No orders to export with current filters.');
+      return;
+    }
+
+    const headers = [
+      'Order Number',
+      'Order Date',
+      'Buyer Name',
+      'Phone',
+      'Delivery Address',
+      'Payment Status',
+      'Payment Provider',
+      'Transaction Ref',
+      'Fulfillment Status',
+      'Subtotal ETB',
+      'Service Fee ETB',
+      'Delivery Fee ETB',
+      'Grand Total ETB',
+      'Items Summary',
+      'AI Risk Score',
+      'Logistics Corridor',
+    ];
+
+    const rows = filteredOrders.map((o) => [
+      `"${o.orderNumber}"`,
+      `"${new Date(o.createdAt).toISOString().split('T')[0]}"`,
+      `"${(o.buyerName || o.deliveryContactName || '').replace(/"/g, '""')}"`,
+      `"${o.deliveryContactPhone || ''}"`,
+      `"${(o.deliveryAddress || '').replace(/"/g, '""')}"`,
+      `"${o.paymentStatus}"`,
+      `"${o.payment?.provider || ''}"`,
+      `"${o.payment?.transactionRef || ''}"`,
+      `"${o.orderStatus}"`,
+      o.totalAmountEtb,
+      o.serviceFeeEtb || 0,
+      o.deliveryFeeEtb || 0,
+      o.grandTotalEtb,
+      `"${(o.items || []).map((i) => `${i.quantity}x ${i.name}`).join('; ').replace(/"/g, '""')}"`,
+      `"${o.smartScore?.riskScore ? `${o.smartScore.riskScore}% (${o.smartScore.riskLevel})` : '99% (LOW)'}"`,
+      `"${o.smartScore?.routeRecommendation || 'Addis-Adama Expressway'}"`,
+    ]);
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `AgriLink_Orders_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showFeedback(`Exported ${filteredOrders.length} orders to CSV successfully.`);
   };
 
   // Update Payment Status
@@ -161,6 +378,82 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Presence Toggle (Human Control vs. AI Auto-Pilot)
+  const handleTogglePresence = async (newMode: 'HUMAN_CONTROL' | 'AI_AUTOPILOT') => {
+    setPresenceUpdating(true);
+    try {
+      const isHumanPresent = newMode === 'HUMAN_CONTROL';
+      const res = await fetch('/api/admin/ai-controller/presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: newMode, isHumanPresent }),
+      });
+      if (res.ok) {
+        showFeedback(
+          newMode === 'HUMAN_CONTROL'
+            ? '👤 Human Admin Presence Confirmed. AI Assistant in STANDBY mode.'
+            : '🤖 AI Auto-Pilot Engaged! AI Assistant is now autonomously evaluating and passing incoming payments.'
+        );
+        await fetchAdminData(true);
+      }
+    } catch (err) {
+      console.error('Failed to toggle presence:', err);
+    } finally {
+      setPresenceUpdating(false);
+    }
+  };
+
+  // Human Admin Manually Passes / Accepts Payment
+  const handlePassPayment = async (paymentId: number) => {
+    setActionInProgressId(paymentId);
+    try {
+      const res = await fetch(`/api/admin/payments/${paymentId}/pass`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNotes: 'Manually verified and accepted by Human Admin Desk' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`✅ Payment #${paymentId} accepted and passed! Order confirmed.`);
+        await fetchAdminData(true);
+        onRefreshAll();
+      } else {
+        alert(data.error || 'Failed to pass payment');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error passing payment');
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
+
+  // Human Admin Rejects Payment
+  const handleRejectPayment = async () => {
+    if (!rejectModalPayment) return;
+    setActionInProgressId(rejectModalPayment.id);
+    try {
+      const res = await fetch(`/api/admin/payments/${rejectModalPayment.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rejectionReason: rejectReason || 'Payment verification failed during human audit.' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showFeedback(`❌ Payment #${rejectModalPayment.id} rejected.`);
+        setRejectModalPayment(null);
+        setRejectReason('');
+        await fetchAdminData(true);
+        onRefreshAll();
+      } else {
+        alert(data.error || 'Failed to reject payment');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error rejecting payment');
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
+
   // Filtered Orders
   const filteredOrders = ordersList.filter((ord) => {
     const q = searchQuery.toLowerCase();
@@ -180,31 +473,68 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return matchesSearch && matchesStatus && matchesPayment;
   });
 
-  const getPaymentStatusBadge = (status: string) => {
+  const getPaymentStatusBadge = (status: string, p?: any) => {
     switch (status) {
       case 'PAID':
+        if (p?.passedBy === 'AI_ASSISTANT') {
+          return (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-2xs cursor-pointer hover:bg-indigo-100 transition-colors"
+              onClick={() => setSelectedAuditLog(p)}
+              title={p.aiReason || 'Autonomously verified & passed by AI Assistant'}
+            >
+              <Bot className="h-3.5 w-3.5 text-indigo-600 animate-pulse" />
+              <span>Passed by AI</span>
+            </span>
+          );
+        }
+        if (p?.passedBy === 'HUMAN_ADMIN') {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Passed by Admin</span>
+            </span>
+          );
+        }
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
-            <CheckCircle2 className="h-3 w-3 text-emerald-600" /> PAID
+            <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {t.adminPortal.statusPaid}
           </span>
         );
       case 'ESCROW_HELD':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-100 text-blue-800 border border-blue-300">
-            <ShieldCheck className="h-3 w-3 text-blue-600" /> ESCROW HELD
+            <ShieldCheck className="h-3 w-3 text-blue-600" /> {t.adminPortal.statusEscrowHeld}
           </span>
         );
       case 'RELEASED_TO_FARMER':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-teal-100 text-teal-800 border border-teal-300">
-            <Wallet className="h-3 w-3 text-teal-600" /> SETTLED TO FARMER
+            <Wallet className="h-3 w-3 text-teal-600" /> {t.adminPortal.statusSettledFarmer}
           </span>
         );
+      case 'PENDING_APPROVAL':
       case 'PENDING':
       case 'PROCESSING':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
-            <Clock className="h-3 w-3 text-amber-600" /> PENDING PAYMENT
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-50 text-amber-900 border border-amber-300 animate-pulse">
+            <Clock className="h-3 w-3 text-amber-600" /> Pending Admin Pass
+          </span>
+        );
+      case 'FLAGGED_SUSPICIOUS':
+        return (
+          <span
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-300 cursor-pointer hover:bg-rose-100 transition-colors"
+            onClick={() => setSelectedAuditLog(p)}
+            title={p.aiReason || 'Flagged by AI Assistant for manual investigation'}
+          >
+            <ShieldAlert className="h-3.5 w-3.5 text-rose-600" /> Flagged by AI
+          </span>
+        );
+      case 'REJECTED':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
+            <AlertCircle className="h-3 w-3 text-rose-600" /> Rejected by Admin
           </span>
         );
       case 'REFUNDED':
@@ -228,27 +558,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       case 'COMPLETED':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <CheckCircle2 className="h-3 w-3" /> Delivered
+            <CheckCircle2 className="h-3 w-3" /> {t.adminPortal.statusDelivered}
           </span>
         );
       case 'IN_TRANSIT':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-purple-800 border border-purple-200 animate-pulse">
-            <Truck className="h-3 w-3" /> In Transit
+            <Truck className="h-3 w-3" /> {t.adminPortal.statusInTransit}
           </span>
         );
       case 'CONFIRMED':
       case 'DRIVER_ASSIGNED':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-            <Package className="h-3 w-3" /> Dispatched
+            <Package className="h-3 w-3" /> {t.adminPortal.statusDispatched}
           </span>
         );
       case 'PREPARING':
       case 'READY_FOR_PICKUP':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-            <Clock className="h-3 w-3" /> Hub Cross-Dock
+            <Clock className="h-3 w-3" /> {t.adminPortal.statusPreparing}
           </span>
         );
       default:
@@ -275,29 +605,54 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider mb-2">
-              <ShieldAlert className="h-4 w-4 text-emerald-400" /> Business Owner & Operations Command Center
+              <ShieldAlert className="h-4 w-4 text-emerald-400" /> {t.adminPortal.commandCenterBadge}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              AgriLink Orders, Payments & Escrow Dashboard
+              {t.adminPortal.title}
             </h1>
             <p className="text-xs sm:text-sm text-zinc-300 mt-1 max-w-3xl leading-relaxed">
-              Complete real-time visibility into customer purchase orders, Telebirr/CBE Birr payment settlements, escrow guarantees, farmer produce dispatch, and delivery fulfillment across Ethiopia.
+              {t.adminPortal.subtitle}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <LanguageSelector variant="pill" theme="dark" className="bg-emerald-950/70 border border-emerald-400/30 text-emerald-100" />
+            <button
+              onClick={() => {
+                const next = !soundEnabled;
+                setSoundEnabled(next);
+                if (next) playOrderChime();
+                showFeedback(next ? '🔊 Audio order chimes enabled' : '🔇 Audio chimes muted');
+              }}
+              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all border ${
+                soundEnabled
+                  ? 'bg-emerald-900/60 border-emerald-400/40 text-emerald-300 hover:bg-emerald-800/80'
+                  : 'bg-zinc-800/80 border-zinc-700 text-zinc-400 hover:bg-zinc-700/80'
+              }`}
+              title={soundEnabled ? 'Order sound alert active (Click to mute)' : 'Order sound muted (Click to unmute)'}
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4 text-emerald-400" /> : <VolumeX className="h-4 w-4" />}
+              <span>{soundEnabled ? 'Chime ON' : 'Muted'}</span>
+            </button>
             <button
               onClick={handleSeedDatabase}
               disabled={seeding}
               className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-md flex items-center gap-2 cursor-pointer transition-all"
             >
-              <Database className="h-4 w-4" /> {seeding ? 'Seeding...' : 'Refresh DB Data'}
+              <Database className="h-4 w-4" /> {seeding ? t.adminPortal.seedingBtn : t.adminPortal.refreshDbBtn}
             </button>
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 text-xs font-bold shadow-inner">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Live DB Sync</span>
+            </div>
             <button
-              onClick={fetchAdminData}
+              onClick={() => fetchAdminData(false)}
               disabled={loading}
               className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer transition-all"
-              title="Refresh Live Data"
+              title={t.adminPortal.refreshLiveTooltip}
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -309,53 +664,53 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-zinc-200 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs text-zinc-500 font-semibold">Gross Orders Volume (GMV)</span>
+            <span className="text-[11px] sm:text-xs text-zinc-500 font-semibold">{t.adminPortal.gmvTitle}</span>
             <DollarSign className="h-4 w-4 text-emerald-600" />
           </div>
           <span className="text-xl sm:text-2xl font-black text-zinc-950 mt-1 block">
-            {metrics ? (metrics.gmvEtb || 0).toLocaleString() : '1,240,000'} <span className="text-xs font-bold text-zinc-500">ETB</span>
+            {metrics ? (metrics.gmvEtb || 0).toLocaleString() : '1,240,000'} <span className="text-xs font-bold text-zinc-500">{t.common.currency}</span>
           </span>
           <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1 mt-1.5">
-            <TrendingUp className="h-3.5 w-3.5" /> 100% Escrow protected
+            <TrendingUp className="h-3.5 w-3.5" /> {t.adminPortal.escrowProtected}
           </span>
         </div>
 
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-zinc-200 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs text-zinc-500 font-semibold">Collected Payments</span>
+            <span className="text-[11px] sm:text-xs text-zinc-500 font-semibold">{t.adminPortal.collectedPaymentsTitle}</span>
             <CreditCard className="h-4 w-4 text-blue-600" />
           </div>
           <span className="text-xl sm:text-2xl font-black text-blue-950 mt-1 block">
-            {metrics ? (metrics.totalPaidAmountEtb || metrics.gmvEtb || 0).toLocaleString() : '1,120,000'} <span className="text-xs font-bold text-zinc-500">ETB</span>
+            {metrics ? (metrics.totalPaidAmountEtb || metrics.gmvEtb || 0).toLocaleString() : '1,120,000'} <span className="text-xs font-bold text-zinc-500">{t.common.currency}</span>
           </span>
           <span className="text-[11px] text-blue-700 font-medium mt-1.5 block">
-            Telebirr • CBE Birr • Awash Bank
+            {t.adminPortal.paymentChannels}
           </span>
         </div>
 
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-zinc-200 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs text-zinc-500 font-semibold">Total Orders Placed</span>
+            <span className="text-[11px] sm:text-xs text-zinc-500 font-semibold">{t.adminPortal.totalOrdersTitle}</span>
             <Package className="h-4 w-4 text-amber-600" />
           </div>
           <span className="text-xl sm:text-2xl font-black text-zinc-900 mt-1 block">
-            {ordersList.length || (metrics ? metrics.totalOrdersCount : 0)} Orders
+            {ordersList.length || (metrics ? metrics.totalOrdersCount : 0)} {t.adminPortal.ordersSuffix}
           </span>
           <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1 mt-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5" /> {ordersList.filter((o) => o.orderStatus === 'DELIVERED').length} Delivered
+            <CheckCircle2 className="h-3.5 w-3.5" /> {ordersList.filter((o) => o.orderStatus === 'DELIVERED').length} {t.adminPortal.deliveredSuffix}
           </span>
         </div>
 
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-zinc-200 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs text-zinc-500 font-semibold">Platform Fee (2%)</span>
+            <span className="text-[11px] sm:text-xs text-zinc-500 font-semibold">{t.adminPortal.platformFeeTitle}</span>
             <Award className="h-4 w-4 text-teal-600" />
           </div>
           <span className="text-xl sm:text-2xl font-black text-teal-950 mt-1 block">
-            {metrics ? (metrics.platformRevenueEtb || 0).toLocaleString() : '24,800'} <span className="text-xs font-bold text-zinc-500">ETB</span>
+            {metrics ? (metrics.platformRevenueEtb || 0).toLocaleString() : '24,800'} <span className="text-xs font-bold text-zinc-500">{t.common.currency}</span>
           </span>
           <span className="text-[11px] text-zinc-500 font-medium mt-1.5 block">
-            Escrow fee & Quality audit
+            {t.adminPortal.feeDescription}
           </span>
         </div>
       </div>
@@ -371,7 +726,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <Package className="h-4 w-4" />
-          <span>Orders & Customers</span>
+          <span>{t.adminPortal.tabOrders}</span>
           <span className="px-1.5 py-0.2 rounded-md bg-white/20 text-[10px] font-bold">
             {ordersList.length}
           </span>
@@ -386,7 +741,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <CreditCard className="h-4 w-4" />
-          <span>Payments & Escrow Ledger</span>
+          <span>{t.adminPortal.tabPayments}</span>
           <span className="px-1.5 py-0.2 rounded-md bg-emerald-600 text-white text-[10px] font-bold">
             {paymentsList.length}
           </span>
@@ -401,7 +756,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <Tag className="h-4 w-4" />
-          <span>Produce & Crops</span>
+          <span>{t.adminPortal.tabProduce}</span>
           <span className="px-1.5 py-0.2 rounded-md bg-zinc-200 text-zinc-800 text-[10px] font-bold">
             {productsList.length}
           </span>
@@ -416,7 +771,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           }`}
         >
           <Users className="h-4 w-4" />
-          <span>Stakeholders & Users</span>
+          <span>{t.adminPortal.tabUsers}</span>
           <span className="px-1.5 py-0.2 rounded-md bg-zinc-200 text-zinc-800 text-[10px] font-bold">
             {allUsers.length}
           </span>
@@ -428,13 +783,151 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       {/* ========================================================================= */}
       {activeSubTab === 'orders' && (
         <div className="space-y-6">
+          {/* AI Market Intelligence & Logistics Copilot */}
+          <div className="bg-gradient-to-br from-zinc-950 via-slate-900 to-emerald-950 rounded-3xl p-5 sm:p-6 text-white border border-emerald-500/30 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 shadow-inner shrink-0">
+                  <Bot className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-black tracking-wide text-white">
+                      AgriLink AI Copilot & Market Intelligence
+                    </h3>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                      99.4% Platform Health
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-300 mt-1 max-w-3xl leading-relaxed">
+                    {aiInsights?.aiSummary || 'Real-time telemetry matching smallholder crop yields, cold-chain trucks, and escrow vaults across Ethiopia.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Health KPI Badges */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 text-[11px]">
+                  <span className="text-zinc-400 block text-[9px] uppercase font-bold">Cold-Chain</span>
+                  <span className="font-black text-cyan-300 flex items-center gap-1">
+                    <Snowflake className="h-3 w-3" /> 100% On-Time
+                  </span>
+                </div>
+                <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 text-[11px]">
+                  <span className="text-zinc-400 block text-[9px] uppercase font-bold">Escrow Solvency</span>
+                  <span className="font-black text-emerald-300 flex items-center gap-1">
+                    <ShieldCheck className="h-3 w-3" /> 100% Backed
+                  </span>
+                </div>
+                <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 text-[11px]">
+                  <span className="text-zinc-400 block text-[9px] uppercase font-bold">Fraud Anomaly</span>
+                  <span className="font-black text-amber-300">0.01% (Low)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actionable Live Insights Bar */}
+            {aiInsights?.actionableAlerts && aiInsights.actionableAlerts.length > 0 && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                {aiInsights.actionableAlerts.map((alt: any) => (
+                  <div
+                    key={alt.id}
+                    className="bg-white/5 border border-white/10 hover:border-emerald-500/40 rounded-2xl p-3 transition-all text-xs"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-emerald-300 text-xs truncate">{alt.title}</span>
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase ${
+                        alt.urgency === 'HIGH' ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'
+                      }`}>
+                        {alt.urgency}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-300 line-clamp-2 leading-relaxed">{alt.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Smart Batch Actions Bar */}
+          <div className="bg-gradient-to-r from-emerald-950/10 via-zinc-50 to-teal-950/10 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800">
+                <Zap className="h-4 w-4 fill-emerald-600 text-emerald-600" />
+              </div>
+              <div>
+                <div className="text-xs font-black text-zinc-900">Smart Logistics & Escrow Batch Automation</div>
+                <div className="text-[11px] text-zinc-500">1-Click Auto-Dispatch, Bulk Farmer Settlements & Official Tax Audit Exports</div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Auto-dispatch all button */}
+              <button
+                onClick={handleBatchDispatch}
+                disabled={
+                  isBatchProcessing ||
+                  ordersList.filter(
+                    (o) => o.orderStatus === 'CONFIRMED' || o.orderStatus === 'PREPARING' || o.orderStatus === 'READY_FOR_PICKUP'
+                  ).length === 0
+                }
+                className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                  ordersList.filter(
+                    (o) => o.orderStatus === 'CONFIRMED' || o.orderStatus === 'PREPARING' || o.orderStatus === 'READY_FOR_PICKUP'
+                  ).length > 0
+                    ? 'bg-zinc-950 hover:bg-zinc-800 text-white'
+                    : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+                }`}
+                title="Automatically matches verified reefer/cargo drivers for all confirmed orders"
+              >
+                <Zap className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                <span>
+                  Auto-Dispatch All ({ordersList.filter(
+                    (o) => o.orderStatus === 'CONFIRMED' || o.orderStatus === 'PREPARING' || o.orderStatus === 'READY_FOR_PICKUP'
+                  ).length})
+                </span>
+              </button>
+
+              {/* Batch release escrow button */}
+              <button
+                onClick={handleBatchReleaseEscrow}
+                disabled={
+                  isBatchProcessing ||
+                  ordersList.filter((o) => o.orderStatus === 'DELIVERED' && o.paymentStatus !== 'RELEASED_TO_FARMER').length === 0
+                }
+                className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                  ordersList.filter((o) => o.orderStatus === 'DELIVERED' && o.paymentStatus !== 'RELEASED_TO_FARMER').length > 0
+                    ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
+                    : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+                }`}
+                title="Release escrow payment to smallholder farmers for all delivered consignments"
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                <span>
+                  Settle Escrows ({ordersList.filter((o) => o.orderStatus === 'DELIVERED' && o.paymentStatus !== 'RELEASED_TO_FARMER').length})
+                </span>
+              </button>
+
+              {/* Export CSV button */}
+              <button
+                onClick={handleExportCsv}
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                title="Download Ethiopian Revenue Authority / Tax Audit CSV"
+              >
+                <Download className="h-3.5 w-3.5 text-zinc-500" />
+                <span>Export CSV</span>
+              </button>
+            </div>
+          </div>
+
           {/* Filter and Search Bar */}
           <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-2xs flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Search by buyer name, phone, order number, crop name, or transaction ref..."
+                placeholder={t.adminPortal.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium"
@@ -442,9 +935,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs cursor-pointer"
                 >
-                  Clear
+                  {t.adminPortal.clearSearch}
                 </button>
               )}
             </div>
@@ -456,11 +949,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onChange={(e) => setSelectedStatusFilter(e.target.value)}
                 className="px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl font-bold text-zinc-700 cursor-pointer"
               >
-                <option value="ALL">All Delivery Statuses</option>
-                <option value="CONFIRMED">Dispatched</option>
-                <option value="IN_TRANSIT">In Transit</option>
-                <option value="DELIVERED">Delivered</option>
-                <option value="PREPARING">Preparing / Cross-Dock</option>
+                <option value="ALL">{t.adminPortal.allDeliveryStatuses}</option>
+                <option value="CONFIRMED">{t.adminPortal.statusDispatched}</option>
+                <option value="IN_TRANSIT">{t.adminPortal.statusInTransit}</option>
+                <option value="DELIVERED">{t.adminPortal.statusDelivered}</option>
+                <option value="PREPARING">{t.adminPortal.statusPreparing}</option>
               </select>
 
               {/* Payment Status Filter */}
@@ -469,11 +962,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onChange={(e) => setSelectedPaymentFilter(e.target.value)}
                 className="px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl font-bold text-zinc-700 cursor-pointer"
               >
-                <option value="ALL">All Payment Statuses</option>
-                <option value="PAID">Paid</option>
-                <option value="ESCROW_HELD">Escrow Held</option>
-                <option value="RELEASED_TO_FARMER">Settled to Farmer</option>
-                <option value="PENDING">Pending Payment</option>
+                <option value="ALL">{t.adminPortal.allPaymentStatuses}</option>
+                <option value="PAID">{t.adminPortal.statusPaid}</option>
+                <option value="ESCROW_HELD">{t.adminPortal.statusEscrowHeld}</option>
+                <option value="RELEASED_TO_FARMER">{t.adminPortal.statusSettledFarmer}</option>
+                <option value="PENDING">{t.adminPortal.statusPending}</option>
               </select>
             </div>
           </div>
@@ -481,18 +974,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           {/* Orders Count and Status Summary */}
           <div className="flex items-center justify-between text-xs text-zinc-500 px-1">
             <span>
-              Showing <strong className="text-zinc-900">{filteredOrders.length}</strong> of{' '}
-              <strong className="text-zinc-900">{ordersList.length}</strong> customer orders
+              {t.adminPortal.showing} <strong className="text-zinc-900">{filteredOrders.length}</strong> {t.adminPortal.of}{' '}
+              <strong className="text-zinc-900">{ordersList.length}</strong> {t.adminPortal.customerOrders}
             </span>
-            <span className="font-mono text-[11px] text-zinc-400">Live PostgreSQL Sync</span>
+            <span className="font-mono text-[11px] text-zinc-400">{t.adminPortal.livePostgresSync}</span>
           </div>
 
           {/* Orders Cards Grid / Table */}
           {filteredOrders.length === 0 ? (
             <div className="bg-white rounded-2xl border border-zinc-200 p-12 text-center">
               <Package className="h-10 w-10 text-zinc-300 mx-auto mb-3" />
-              <h3 className="text-base font-bold text-zinc-900">No matching orders found</h3>
-              <p className="text-xs text-zinc-500 mt-1">Try clearing your search query or filters.</p>
+              <h3 className="text-base font-bold text-zinc-900">{t.adminPortal.noMatchingOrders}</h3>
+              <p className="text-xs text-zinc-500 mt-1">{t.adminPortal.noMatchingOrdersSubtitle}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -509,6 +1002,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </span>
                         {getPaymentStatusBadge(ord.paymentStatus)}
                         {getOrderStatusBadge(ord.orderStatus)}
+                        
+                        {/* Smart AI Risk Badge */}
+                        {ord.smartScore && (
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                              ord.smartScore.riskLevel === 'LOW'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                : ord.smartScore.riskLevel === 'MEDIUM'
+                                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                : 'bg-rose-50 text-rose-800 border-rose-300'
+                            }`}
+                          >
+                            <ShieldCheck className="h-3 w-3" />
+                            {ord.smartScore.riskScore}% AI Verified • {ord.smartScore.riskLevel} RISK
+                          </span>
+                        )}
+
+                        {/* Cold Chain Indicator */}
+                        {ord.smartScore?.perishabilityRisk === 'HIGH' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-50 text-cyan-800 border border-cyan-200">
+                            <Snowflake className="h-3 w-3 text-cyan-600" /> Cold-Chain Priority
+                          </span>
+                        )}
+
                         <span className="text-[11px] text-zinc-400 font-mono">
                           • {new Date(ord.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
@@ -518,7 +1035,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-600">
                         <div className="flex items-center gap-1 font-bold text-zinc-900">
                           <Users className="h-3.5 w-3.5 text-zinc-400" />
-                          <span>Buyer: {ord.buyerName || ord.deliveryContactName}</span>
+                          <span>{t.adminPortal.buyerLabel}: {ord.buyerName || ord.deliveryContactName}</span>
                           {ord.buyer?.organizationName && (
                             <span className="text-zinc-500 font-normal">({ord.buyer.organizationName})</span>
                           )}
@@ -534,17 +1051,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           <span>{ord.deliveryAddress}</span>
                         </div>
                       </div>
+
+                      {/* Recommended Logistics Corridor */}
+                      {ord.smartScore?.routeRecommendation && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-semibold mt-1">
+                          <Radio className="h-3 w-3 text-emerald-600 animate-pulse" />
+                          <span>Recommended Route: <strong>{ord.smartScore.routeRecommendation}</strong></span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Order Financial Amount */}
                     <div className="text-left lg:text-right">
-                      <span className="text-xs text-zinc-500 block">Total Order Value</span>
+                      <span className="text-xs text-zinc-500 block">{t.adminPortal.totalOrderValue}</span>
                       <span className="text-xl font-black text-emerald-950">
-                        {ord.grandTotalEtb.toLocaleString()} <span className="text-xs font-bold text-zinc-500">ETB</span>
+                        {ord.grandTotalEtb.toLocaleString()} <span className="text-xs font-bold text-zinc-500">{t.common.currency}</span>
                       </span>
                       {ord.payment?.provider && (
                         <span className="text-[11px] text-zinc-500 font-medium block">
-                          via {ord.payment.provider.replace(/_/g, ' ')}
+                          {t.adminPortal.viaProvider} {ord.payment.provider.replace(/_/g, ' ')}
                         </span>
                       )}
                     </div>
@@ -553,7 +1078,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   {/* Products Ordered Breakdown */}
                   <div className="py-3">
                     <span className="text-[11px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">
-                      Crops & Produce in this Order ({ord.items?.length || 0} item{ord.items?.length !== 1 ? 's' : ''})
+                      {t.adminPortal.cropsInOrder} ({ord.items?.length || 0} {ord.items?.length === 1 ? t.adminPortal.itemWord : t.adminPortal.itemsWord})
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                       {ord.items?.map((it) => (
@@ -564,16 +1089,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           <div>
                             <div className="font-bold text-xs text-zinc-900">{it.name}</div>
                             <div className="text-[11px] text-zinc-500">
-                              Quantity: <strong className="text-zinc-800">{it.quantity} {it.unit}</strong> @ {it.unitPriceEtb} ETB/{it.unit}
+                              {t.adminPortal.quantityLabel}: <strong className="text-zinc-800">{it.quantity} {it.unit}</strong> @ {it.unitPriceEtb} {t.common.currency}/{it.unit}
                             </div>
                             {it.lotBatchNumber && (
                               <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded inline-block mt-1">
-                                LOT: {it.lotBatchNumber}
+                                {t.adminPortal.lotPrefix}: {it.lotBatchNumber}
                               </div>
                             )}
                           </div>
                           <span className="font-black text-xs text-zinc-900 whitespace-nowrap">
-                            {it.subtotalEtb.toLocaleString()} ETB
+                            {it.subtotalEtb.toLocaleString()} {t.common.currency}
                           </span>
                         </div>
                       ))}
@@ -586,30 +1111,41 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       {ord.payment?.transactionRef && (
                         <div className="flex items-center gap-1 font-mono text-[11px]">
                           <CreditCard className="h-3.5 w-3.5 text-zinc-400" />
-                          <span>TxRef: <strong>{ord.payment.transactionRef}</strong></span>
+                          <span>{t.adminPortal.txRefLabel}: <strong>{ord.payment.transactionRef}</strong></span>
                         </div>
                       )}
                       {ord.payerAccountNumber && (
                         <div className="flex items-center gap-1 text-[11px]">
-                          <span>Payer Acct: <strong>{ord.payerAccountNumber}</strong></span>
+                          <span>{t.adminPortal.payerAcctLabel}: <strong>{ord.payerAccountNumber}</strong></span>
                         </div>
                       )}
                       {ord.tinNumber && (
                         <div className="flex items-center gap-1 text-[11px] text-zinc-500">
-                          <span>TIN: <strong>{ord.tinNumber}</strong></span>
+                          <span>{t.adminPortal.tinLabel}: <strong>{ord.tinNumber}</strong></span>
                         </div>
                       )}
                     </div>
 
                     {/* Owner Action Buttons */}
                     <div className="flex flex-wrap items-center gap-2">
+                      {/* Smart 1-Click Auto Dispatch Button */}
+                      {(ord.orderStatus === 'CONFIRMED' || ord.orderStatus === 'PREPARING' || ord.orderStatus === 'READY_FOR_PICKUP') && (
+                        <button
+                          onClick={() => handleAutoDispatch(ord.id)}
+                          className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-800 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-black cursor-pointer transition-all shadow-2xs flex items-center gap-1"
+                          title="Smart Auto-Dispatch: Automatically match refrigerated/cargo driver and launch transit"
+                        >
+                          <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" /> Smart Auto-Dispatch
+                        </button>
+                      )}
+
                       {/* One-click Verify / Pay */}
                       {ord.paymentStatus !== 'PAID' && ord.paymentStatus !== 'RELEASED_TO_FARMER' && (
                         <button
                           onClick={() => handleUpdatePaymentStatus(ord.id, 'PAID')}
                           className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition-colors shadow-2xs flex items-center gap-1"
                         >
-                          <Check className="h-3.5 w-3.5" /> Verify Paid
+                          <Check className="h-3.5 w-3.5" /> {t.adminPortal.verifyPaidBtn}
                         </button>
                       )}
 
@@ -620,7 +1156,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           className="px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold cursor-pointer transition-colors shadow-2xs flex items-center gap-1"
                           title="Release escrow payment to the smallholder farmer after delivery confirmation"
                         >
-                          <Wallet className="h-3.5 w-3.5" /> Release Escrow to Farmer
+                          <Wallet className="h-3.5 w-3.5" /> {t.adminPortal.releaseEscrowToFarmerBtn}
                         </button>
                       )}
 
@@ -631,7 +1167,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold cursor-pointer transition-colors shadow-2xs flex items-center gap-1"
                         >
                           <Truck className="h-3.5 w-3.5" />
-                          {ord.orderStatus === 'CONFIRMED' ? 'Mark In-Transit' : 'Mark Delivered'}
+                          {ord.orderStatus === 'CONFIRMED' ? t.adminPortal.markInTransitBtn : t.adminPortal.markDeliveredBtn}
                         </button>
                       )}
 
@@ -640,7 +1176,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         onClick={() => setSelectedOrder(ord)}
                         className="px-3 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-xs font-bold cursor-pointer flex items-center gap-1"
                       >
-                        <Eye className="h-3.5 w-3.5 text-zinc-500" /> Dossier
+                        <Eye className="h-3.5 w-3.5 text-zinc-500" /> {t.adminPortal.dossierBtn}
                       </button>
 
                       {/* View / Print Official Receipt */}
@@ -649,7 +1185,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         className="px-3 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-xs font-bold cursor-pointer flex items-center gap-1"
                         title="View Official Ethiopian Tax Invoice & Receipt"
                       >
-                        <Printer className="h-3.5 w-3.5 text-zinc-500" /> Invoice
+                        <Printer className="h-3.5 w-3.5 text-zinc-500" /> {t.adminPortal.invoiceBtn}
                       </button>
                     </div>
                   </div>
@@ -669,23 +1205,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                  Real-time Settlement & Escrow Vault
+                  {t.adminPortal.vaultBadge}
                 </span>
-                <h3 className="text-xl font-black mt-1">National Agri-Payment Rails</h3>
+                <h3 className="text-xl font-black mt-1">{t.adminPortal.paymentRailsTitle}</h3>
                 <p className="text-xs text-zinc-300 mt-1 max-w-2xl">
-                  Automated escrow protection holds buyer payments until produce reaches the destination hub, safeguarding both buyers and smallholder farmers.
+                  {t.adminPortal.paymentRailsSubtitle}
                 </p>
               </div>
               <div className="flex gap-4">
                 <div className="bg-white/10 px-4 py-2.5 rounded-xl">
-                  <span className="text-[10px] text-zinc-300 uppercase block font-semibold">Total Escrow Volume</span>
+                  <span className="text-[10px] text-zinc-300 uppercase block font-semibold">{t.adminPortal.totalEscrowVolume}</span>
                   <span className="text-lg font-black text-white">
-                    {metrics ? (metrics.gmvEtb || 0).toLocaleString() : '1,240,000'} ETB
+                    {metrics ? (metrics.gmvEtb || 0).toLocaleString() : '1,240,000'} {t.common.currency}
                   </span>
                 </div>
                 <div className="bg-white/10 px-4 py-2.5 rounded-xl">
-                  <span className="text-[10px] text-zinc-300 uppercase block font-semibold">Transactions</span>
-                  <span className="text-lg font-black text-emerald-300">{paymentsList.length} Settled</span>
+                  <span className="text-[10px] text-zinc-300 uppercase block font-semibold">{t.adminPortal.transactionsSettled}</span>
+                  <span className="text-lg font-black text-emerald-300">{paymentsList.length} {t.adminPortal.settledCountSuffix}</span>
                 </div>
               </div>
             </div>
@@ -695,24 +1231,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-2xs">
             <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-black text-zinc-900">Payment & Escrow Transactions Ledger</h3>
-                <p className="text-xs text-zinc-500">Every payment initiated across Telebirr, CBE Birr, Awash Bank, and Chapa</p>
+                <h3 className="text-sm font-black text-zinc-900">{t.adminPortal.ledgerTableTitle}</h3>
+                <p className="text-xs text-zinc-500">{t.adminPortal.ledgerTableSubtitle}</p>
               </div>
-              <span className="text-xs font-mono text-zinc-500">{paymentsList.length} Records</span>
+              <span className="text-xs font-mono text-zinc-500">{paymentsList.length} {t.adminPortal.recordsSuffix}</span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 uppercase font-bold text-[11px]">
                   <tr>
-                    <th className="p-4">Transaction Ref</th>
-                    <th className="p-4">Payer / Customer</th>
-                    <th className="p-4">Order #</th>
-                    <th className="p-4">Amount (ETB)</th>
-                    <th className="p-4">Payment Provider</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Date / Time</th>
-                    <th className="p-4 text-right">Actions</th>
+                    <th className="p-4">{t.adminPortal.colTxRef}</th>
+                    <th className="p-4">{t.adminPortal.colPayerCustomer}</th>
+                    <th className="p-4">{t.adminPortal.colOrderNum}</th>
+                    <th className="p-4">{t.adminPortal.colAmountEtb}</th>
+                    <th className="p-4">{t.adminPortal.colProvider}</th>
+                    <th className="p-4">{t.adminPortal.colStatus}</th>
+                    <th className="p-4">{t.adminPortal.colDateTime}</th>
+                    <th className="p-4 text-right">{t.adminPortal.colActions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-200">
@@ -722,7 +1258,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         {p.transactionRef}
                       </td>
                       <td className="p-4">
-                        <div className="font-bold text-zinc-900">{p.userName || 'Customer'}</div>
+                        <div className="font-bold text-zinc-900">{p.userName || t.adminPortal.customerFallback}</div>
                         <div className="text-[11px] text-zinc-500 font-mono">{p.userPhone}</div>
                         {p.organizationName && (
                           <div className="text-[10px] text-zinc-400">{p.organizationName}</div>
@@ -732,7 +1268,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         {p.orderNumber}
                       </td>
                       <td className="p-4 font-black text-zinc-950">
-                        {p.amountEtb.toLocaleString()} ETB
+                        {p.amountEtb.toLocaleString()} {t.common.currency}
                       </td>
                       <td className="p-4">
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-zinc-100 text-zinc-800 border border-zinc-200 uppercase">
@@ -751,7 +1287,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             onClick={() => handleUpdatePaymentStatus(p.orderId, 'RELEASED_TO_FARMER')}
                             className="px-2.5 py-1 rounded-md bg-teal-50 hover:bg-teal-100 text-teal-900 font-bold text-[10px] cursor-pointer"
                           >
-                            Release Escrow
+                            {t.adminPortal.releaseEscrowBtn}
                           </button>
                         )}
                       </td>
@@ -771,10 +1307,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="space-y-6">
           <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-2xs flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-zinc-900">Active Smallholder Produce Catalog</h3>
-              <p className="text-xs text-zinc-500">Authentic Ethiopian crops listed directly by local farmers with lot batch traceability</p>
+              <h3 className="text-sm font-bold text-zinc-900">{t.adminPortal.produceCatalogTitle}</h3>
+              <p className="text-xs text-zinc-500">{t.adminPortal.produceCatalogSubtitle}</p>
             </div>
-            <span className="text-xs font-mono text-zinc-500">{productsList.length} Active Crops</span>
+            <span className="text-xs font-mono text-zinc-500">{productsList.length} {t.adminPortal.activeCropsSuffix}</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -795,14 +1331,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   
                   <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs">
                     <div>
-                      <span className="text-[11px] text-zinc-400 block">Unit Farm Price</span>
+                      <span className="text-[11px] text-zinc-400 block">{t.adminPortal.unitFarmPrice}</span>
                       <strong className="text-emerald-950 font-black text-sm">
-                        {prod.pricePerUnitEtb.toLocaleString()} ETB
+                        {prod.pricePerUnitEtb.toLocaleString()} {t.common.currency}
                       </strong>{' '}
                       <span className="text-[10px] text-zinc-500">/{prod.unit}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[11px] text-zinc-400 block">Stock Available</span>
+                      <span className="text-[11px] text-zinc-400 block">{t.adminPortal.stockAvailable}</span>
                       <strong className="text-zinc-900 font-bold">
                         {prod.availableQuantity} {prod.unit}s
                       </strong>
@@ -811,8 +1347,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
 
                 <div className="bg-zinc-50 px-4 py-2.5 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-500">
-                  <span>Farmer: <strong className="text-zinc-800">{prod.farmerName || 'Verified Smallholder'}</strong></span>
-                  <span className="text-emerald-700 font-bold">Grade: {prod.grade}</span>
+                  <span>{t.adminPortal.farmerLabel}: <strong className="text-zinc-800">{prod.farmerName || t.adminPortal.verifiedSmallholder}</strong></span>
+                  <span className="text-emerald-700 font-bold">{t.adminPortal.gradeLabel}: {prod.grade}</span>
                 </div>
               </div>
             ))}
@@ -827,22 +1363,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-2xs">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-base font-bold text-zinc-900">Platform Users & RBAC Directory</h3>
-              <p className="text-xs text-zinc-500">All registered stakeholder accounts in PostgreSQL with active role mappings</p>
+              <h3 className="text-base font-bold text-zinc-900">{t.adminPortal.usersDirectoryTitle}</h3>
+              <p className="text-xs text-zinc-500">{t.adminPortal.usersDirectorySubtitle}</p>
             </div>
-            <span className="text-xs font-mono text-zinc-500">{allUsers.length} Active Records</span>
+            <span className="text-xs font-mono text-zinc-500">{allUsers.length} {t.adminPortal.activeRecordsSuffix}</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 uppercase font-bold text-[11px]">
                 <tr>
-                  <th className="p-4">User</th>
-                  <th className="p-4">Role</th>
-                  <th className="p-4">Region / Base</th>
-                  <th className="p-4">Organization</th>
-                  <th className="p-4">Contact Phone</th>
-                  <th className="p-4">Verification</th>
+                  <th className="p-4">{t.adminPortal.colUser}</th>
+                  <th className="p-4">{t.adminPortal.colRole}</th>
+                  <th className="p-4">{t.adminPortal.colRegionBase}</th>
+                  <th className="p-4">{t.adminPortal.colOrganization}</th>
+                  <th className="p-4">{t.adminPortal.colContactPhone}</th>
+                  <th className="p-4">{t.adminPortal.colVerification}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200">
@@ -872,10 +1408,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <td className="p-4">
                       {u.isVerified ? (
                         <span className="text-emerald-700 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Verified
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {t.adminPortal.statusVerified}
                         </span>
                       ) : (
-                        <span className="text-zinc-400">Standard</span>
+                        <span className="text-zinc-400">{t.adminPortal.statusStandard}</span>
                       )}
                     </td>
                   </tr>
@@ -895,7 +1431,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="flex items-center justify-between border-b border-zinc-200 pb-4 mb-4">
               <div>
                 <span className="text-xs font-bold text-zinc-400 font-mono">{selectedOrder.orderNumber}</span>
-                <h3 className="text-lg font-black text-zinc-900">Customer Order Dossier</h3>
+                <h3 className="text-lg font-black text-zinc-900">{t.adminPortal.dossierTitle}</h3>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
@@ -909,34 +1445,96 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {/* Buyer / Customer Info */}
               <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-200">
                 <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">
-                  Customer & Delivery Details
+                  {t.adminPortal.customerDeliveryDetails}
                 </span>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-zinc-400 block text-[11px]">Customer Name</span>
+                    <span className="text-zinc-400 block text-[11px]">{t.adminPortal.customerNameLabel}</span>
                     <strong className="text-zinc-900 font-bold text-sm">
                       {selectedOrder.buyerName || selectedOrder.deliveryContactName}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-zinc-400 block text-[11px]">Phone Number</span>
+                    <span className="text-zinc-400 block text-[11px]">{t.adminPortal.phoneNumberLabel}</span>
                     <strong className="text-zinc-900 font-mono">{selectedOrder.deliveryContactPhone}</strong>
                   </div>
                   <div>
-                    <span className="text-zinc-400 block text-[11px]">Delivery Location</span>
+                    <span className="text-zinc-400 block text-[11px]">{t.adminPortal.deliveryLocationLabel}</span>
                     <span className="text-zinc-700">{selectedOrder.deliveryAddress}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-400 block text-[11px]">Fayda / TIN Number</span>
+                    <span className="text-zinc-400 block text-[11px]">{t.adminPortal.faydaTinLabel}</span>
                     <span className="text-zinc-700 font-mono">{selectedOrder.tinNumber || selectedOrder.nationalIdNumber || '—'}</span>
                   </div>
                 </div>
               </div>
 
+              {/* AI Smart Telemetry & Routing Section */}
+              <div className="bg-gradient-to-r from-zinc-900 to-slate-900 rounded-xl p-4 text-white border border-emerald-500/30">
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <Bot className="h-3.5 w-3.5" /> AI Dispatch & Telemetry Intelligence
+                  </span>
+                  {selectedOrder.smartScore && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {selectedOrder.smartScore.riskScore}% AI Verified
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <span className="text-zinc-400 block text-[10px] uppercase">Recommended Logistics Corridor</span>
+                    <span className="font-bold text-emerald-300 flex items-center gap-1 mt-0.5">
+                      <Radio className="h-3 w-3 animate-pulse text-emerald-400" />
+                      {selectedOrder.smartScore?.routeRecommendation || 'Addis-Adama Expressway Logistics Corridor'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px] uppercase">Perishability & Cold-Chain</span>
+                    <span className="font-bold text-white flex items-center gap-1 mt-0.5">
+                      {selectedOrder.smartScore?.perishabilityRisk === 'HIGH' ? (
+                        <span className="text-cyan-300 flex items-center gap-1">
+                          <Snowflake className="h-3 w-3" /> Refrigerated Fleet Required
+                        </span>
+                      ) : (
+                        <span className="text-zinc-300">Standard Ambient Cargo</span>
+                      )}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px] uppercase">Assigned Carrier / Driver</span>
+                    <span className="font-bold text-zinc-200 mt-0.5 block font-mono">
+                      {selectedOrder.delivery?.driverName
+                        ? `${selectedOrder.delivery.driverName} (${selectedOrder.delivery.vehiclePlate || 'Fleet'})`
+                        : 'Pending Auto-Assignment'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[10px] uppercase">KYC & Identity Confidence</span>
+                    <span className="font-bold text-emerald-300 mt-0.5 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Kebele/Fayda ID Verified
+                    </span>
+                  </div>
+                </div>
+
+                {/* 1-Click trigger inside modal if not yet in transit */}
+                {(selectedOrder.orderStatus === 'CONFIRMED' || selectedOrder.orderStatus === 'PREPARING' || selectedOrder.orderStatus === 'READY_FOR_PICKUP') && (
+                  <div className="mt-3 pt-3 border-t border-white/10 flex justify-end">
+                    <button
+                      onClick={() => handleAutoDispatch(selectedOrder.id)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black cursor-pointer flex items-center gap-1.5 transition-colors shadow-xs"
+                    >
+                      <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" /> Auto-Dispatch via Expressway Now
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Items List */}
               <div>
                 <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">
-                  Ordered Crop Items
+                  {t.adminPortal.orderedCropItems}
                 </span>
                 <div className="divide-y divide-zinc-200 border border-zinc-200 rounded-xl overflow-hidden">
                   {selectedOrder.items?.map((it) => (
@@ -944,11 +1542,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       <div>
                         <div className="font-bold text-zinc-900">{it.name}</div>
                         <div className="text-zinc-500 text-[11px]">
-                          {it.quantity} {it.unit} @ {it.unitPriceEtb} ETB/{it.unit} • Lot: {it.lotBatchNumber}
+                          {it.quantity} {it.unit} @ {it.unitPriceEtb} {t.common.currency}/{it.unit} • {t.adminPortal.lotPrefix}: {it.lotBatchNumber}
                         </div>
                       </div>
                       <div className="font-black text-sm text-zinc-950">
-                        {it.subtotalEtb.toLocaleString()} ETB
+                        {it.subtotalEtb.toLocaleString()} {t.common.currency}
                       </div>
                     </div>
                   ))}
@@ -958,25 +1556,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {/* Payment Info */}
               <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
                 <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block mb-2">
-                  Payment & Escrow Information
+                  {t.adminPortal.paymentEscrowInfo}
                 </span>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-emerald-700 block text-[11px]">Payment Status</span>
+                    <span className="text-emerald-700 block text-[11px]">{t.adminPortal.paymentStatusLabel}</span>
                     {getPaymentStatusBadge(selectedOrder.paymentStatus)}
                   </div>
                   <div>
-                    <span className="text-emerald-700 block text-[11px]">Grand Total</span>
+                    <span className="text-emerald-700 block text-[11px]">{t.adminPortal.grandTotalLabel}</span>
                     <strong className="text-emerald-950 font-black text-base">
-                      {selectedOrder.grandTotalEtb.toLocaleString()} ETB
+                      {selectedOrder.grandTotalEtb.toLocaleString()} {t.common.currency}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-emerald-700 block text-[11px]">Provider / Gateway</span>
+                    <span className="text-emerald-700 block text-[11px]">{t.adminPortal.providerGatewayLabel}</span>
                     <strong className="text-emerald-950 font-mono">{selectedOrder.payment?.provider || 'TELEBIRR'}</strong>
                   </div>
                   <div>
-                    <span className="text-emerald-700 block text-[11px]">Transaction Reference</span>
+                    <span className="text-emerald-700 block text-[11px]">{t.adminPortal.transactionRefLabel}</span>
                     <strong className="text-emerald-950 font-mono">{selectedOrder.payment?.transactionRef || 'TX-PENDING'}</strong>
                   </div>
                 </div>
@@ -991,14 +1589,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   }}
                   className="px-4 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-xs cursor-pointer flex items-center gap-1.5"
                 >
-                  <Printer className="h-4 w-4" /> Print Tax Receipt
+                  <Printer className="h-4 w-4" /> {t.adminPortal.printTaxReceiptBtn}
                 </button>
                 {selectedOrder.paymentStatus !== 'PAID' && (
                   <button
                     onClick={() => handleUpdatePaymentStatus(selectedOrder.id, 'PAID')}
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer flex items-center gap-1.5"
                   >
-                    <Check className="h-4 w-4" /> Verify Payment
+                    <Check className="h-4 w-4" /> {t.adminPortal.verifyPaymentBtn}
                   </button>
                 )}
               </div>
@@ -1016,12 +1614,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {/* Invoice Top */}
             <div className="flex items-center justify-between border-b border-zinc-200 pb-4 mb-6">
               <div>
-                <span className="text-xs font-black tracking-wider text-emerald-800 uppercase">AGRILINK ETHIOPIA</span>
-                <h3 className="text-xl font-black text-zinc-950">Commercial Produce Invoice</h3>
-                <span className="text-xs text-zinc-400 font-mono">Invoice #{invoiceModalOrder.orderNumber}</span>
+                <span className="text-xs font-black tracking-wider text-emerald-800 uppercase">{t.adminPortal.invoiceBrand}</span>
+                <h3 className="text-xl font-black text-zinc-950">{t.adminPortal.commercialInvoiceTitle}</h3>
+                <span className="text-xs text-zinc-400 font-mono">{t.adminPortal.invoiceNumPrefix}{invoiceModalOrder.orderNumber}</span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-zinc-400 font-bold block uppercase">Date Issued</span>
+                <span className="text-[10px] text-zinc-400 font-bold block uppercase">{t.adminPortal.dateIssuedLabel}</span>
                 <span className="text-xs font-bold text-zinc-800">
                   {new Date(invoiceModalOrder.createdAt).toLocaleDateString('en-GB')}
                 </span>
@@ -1031,24 +1629,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {/* Billed To / Shipped To */}
             <div className="grid grid-cols-2 gap-4 text-xs mb-6 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
               <div>
-                <span className="text-[10px] text-zinc-400 uppercase font-bold block mb-1">Customer / Billed To:</span>
+                <span className="text-[10px] text-zinc-400 uppercase font-bold block mb-1">{t.adminPortal.billedToCustomer}</span>
                 <div className="font-bold text-zinc-900 text-sm">
                   {invoiceModalOrder.buyerName || invoiceModalOrder.deliveryContactName}
                 </div>
                 <div className="text-zinc-600">{invoiceModalOrder.deliveryAddress}</div>
                 <div className="text-zinc-500 font-mono">{invoiceModalOrder.deliveryContactPhone}</div>
                 {invoiceModalOrder.tinNumber && (
-                  <div className="text-[10px] text-zinc-400 mt-1 font-mono">TIN: {invoiceModalOrder.tinNumber}</div>
+                  <div className="text-[10px] text-zinc-400 mt-1 font-mono">{t.adminPortal.tinLabel}: {invoiceModalOrder.tinNumber}</div>
                 )}
               </div>
 
               <div>
-                <span className="text-[10px] text-zinc-400 uppercase font-bold block mb-1">Payment & Escrow Seal:</span>
+                <span className="text-[10px] text-zinc-400 uppercase font-bold block mb-1">{t.adminPortal.paymentEscrowSeal}</span>
                 <div className="font-bold text-emerald-800 font-mono">
                   {invoiceModalOrder.payment?.provider || 'TELEBIRR / CBE BIRR'}
                 </div>
                 <div className="text-[11px] text-zinc-500 font-mono">
-                  Ref: {invoiceModalOrder.payment?.transactionRef || 'TX-ETH-AGRI'}
+                  {t.adminPortal.txRefLabel}: {invoiceModalOrder.payment?.transactionRef || 'TX-ETH-AGRI'}
                 </div>
                 <div className="mt-1">
                   {getPaymentStatusBadge(invoiceModalOrder.paymentStatus)}
@@ -1061,10 +1659,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <table className="w-full text-left">
                 <thead className="bg-zinc-100 text-zinc-600 font-bold uppercase text-[10px]">
                   <tr>
-                    <th className="p-3">Produce Item</th>
-                    <th className="p-3 text-center">Qty</th>
-                    <th className="p-3 text-right">Price</th>
-                    <th className="p-3 text-right">Subtotal</th>
+                    <th className="p-3">{t.adminPortal.thProduceItem}</th>
+                    <th className="p-3 text-center">{t.adminPortal.thQty}</th>
+                    <th className="p-3 text-right">{t.adminPortal.thPrice}</th>
+                    <th className="p-3 text-right">{t.adminPortal.thSubtotal}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-200">
@@ -1072,8 +1670,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <tr key={it.id}>
                       <td className="p-3 font-bold text-zinc-900">{it.name}</td>
                       <td className="p-3 text-center text-zinc-600">{it.quantity} {it.unit}</td>
-                      <td className="p-3 text-right text-zinc-600">{it.unitPriceEtb} ETB</td>
-                      <td className="p-3 text-right font-bold text-zinc-900">{it.subtotalEtb.toLocaleString()} ETB</td>
+                      <td className="p-3 text-right text-zinc-600">{it.unitPriceEtb} {t.common.currency}</td>
+                      <td className="p-3 text-right font-bold text-zinc-900">{it.subtotalEtb.toLocaleString()} {t.common.currency}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1083,20 +1681,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {/* Total Math */}
             <div className="space-y-1.5 text-xs border-t border-zinc-200 pt-3 mb-6">
               <div className="flex justify-between text-zinc-600">
-                <span>Subtotal</span>
-                <span>{invoiceModalOrder.totalAmountEtb.toLocaleString()} ETB</span>
+                <span>{t.adminPortal.subtotalLabel}</span>
+                <span>{invoiceModalOrder.totalAmountEtb.toLocaleString()} {t.common.currency}</span>
               </div>
               <div className="flex justify-between text-zinc-600">
-                <span>Delivery & Cold-Chain Logistics</span>
-                <span>{(invoiceModalOrder.deliveryFeeEtb || 0).toLocaleString()} ETB</span>
+                <span>{t.adminPortal.deliveryLogisticsLabel}</span>
+                <span>{(invoiceModalOrder.deliveryFeeEtb || 0).toLocaleString()} {t.common.currency}</span>
               </div>
               <div className="flex justify-between text-zinc-600">
-                <span>Platform Quality & Escrow Fee (2%)</span>
-                <span>{(invoiceModalOrder.serviceFeeEtb || 0).toLocaleString()} ETB</span>
+                <span>{t.adminPortal.platformEscrowFeeLabel}</span>
+                <span>{(invoiceModalOrder.serviceFeeEtb || 0).toLocaleString()} {t.common.currency}</span>
               </div>
               <div className="flex justify-between text-base font-black text-zinc-950 pt-2 border-t border-zinc-200">
-                <span>Grand Total (ETB)</span>
-                <span className="text-emerald-800">{invoiceModalOrder.grandTotalEtb.toLocaleString()} ETB</span>
+                <span>{t.adminPortal.grandTotalEtbLabel}</span>
+                <span className="text-emerald-800">{invoiceModalOrder.grandTotalEtb.toLocaleString()} {t.common.currency}</span>
               </div>
             </div>
 
@@ -1106,13 +1704,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onClick={() => window.print()}
                 className="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5"
               >
-                <Printer className="h-4 w-4" /> Print Receipt
+                <Printer className="h-4 w-4" /> {t.adminPortal.printReceiptBtn}
               </button>
               <button
                 onClick={() => setInvoiceModalOrder(null)}
                 className="px-4 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-zinc-700 text-xs font-bold cursor-pointer"
               >
-                Close
+                {t.adminPortal.closeBtn}
               </button>
             </div>
           </div>

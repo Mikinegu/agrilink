@@ -16,10 +16,13 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
+import { LanguageSelector } from './LanguageSelector.tsx';
 import { Product } from '../types/index.ts';
 
 export const FarmerDashboard: React.FC = () => {
   const { currentUser } = useAuth();
+  const { t, currentLanguage } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [marketPrices, setMarketPrices] = useState<any[]>([]);
@@ -57,11 +60,41 @@ export const FarmerDashboard: React.FC = () => {
   }, [currentUser]);
 
   const defaultCommodities = [
-    { commodity: 'White Teff (Magna)', currentPriceEtb: 11500, unit: 'Quintal (100kg)', changePercent: 4.8, marketHub: 'Bishoftu / Ada\'a' },
-    { commodity: 'Washed Yirgacheffe Coffee', currentPriceEtb: 42000, unit: 'Quintal (100kg)', changePercent: 6.2, marketHub: 'ECX Addis Ababa' },
-    { commodity: 'Kabuli Chickpeas', currentPriceEtb: 7200, unit: 'Quintal (100kg)', changePercent: -1.2, marketHub: 'Gondar Central' },
-    { commodity: 'Hass Avocado (Grade 1)', currentPriceEtb: 85, unit: 'KG', changePercent: 3.5, marketHub: 'Hawassa Hub' },
-    { commodity: 'Red Kidney Beans', currentPriceEtb: 6400, unit: 'Quintal (100kg)', changePercent: 2.1, marketHub: 'Adama Terminal' },
+    {
+      commodity: t.farmer.commodities.whiteTeff,
+      currentPriceEtb: 11500,
+      unit: currentLanguage === 'am' ? 'ኩንታል (100 ኪ.ግ)' : currentLanguage === 'om' ? 'Kuntaala (100kg)' : 'Quintal (100kg)',
+      changePercent: 4.8,
+      marketHub: t.farmer.hubs.bishoftu,
+    },
+    {
+      commodity: t.farmer.commodities.yirgacheffeCoffee,
+      currentPriceEtb: 42000,
+      unit: currentLanguage === 'am' ? 'ኩንታል (100 ኪ.ግ)' : currentLanguage === 'om' ? 'Kuntaala (100kg)' : 'Quintal (100kg)',
+      changePercent: 6.2,
+      marketHub: t.farmer.hubs.ecxAddis,
+    },
+    {
+      commodity: t.farmer.commodities.kabuliChickpeas,
+      currentPriceEtb: 7200,
+      unit: currentLanguage === 'am' ? 'ኩንታል (100 ኪ.ግ)' : currentLanguage === 'om' ? 'Kuntaala (100kg)' : 'Quintal (100kg)',
+      changePercent: -1.2,
+      marketHub: t.farmer.hubs.gondar,
+    },
+    {
+      commodity: t.farmer.commodities.hassAvocado,
+      currentPriceEtb: 85,
+      unit: currentLanguage === 'am' ? 'ኪ.ግ' : 'KG',
+      changePercent: 3.5,
+      marketHub: t.farmer.hubs.hawassa,
+    },
+    {
+      commodity: t.farmer.commodities.redKidneyBeans,
+      currentPriceEtb: 6400,
+      unit: currentLanguage === 'am' ? 'ኩንታል (100 ኪ.ግ)' : currentLanguage === 'om' ? 'Kuntaala (100kg)' : 'Quintal (100kg)',
+      changePercent: 2.1,
+      marketHub: t.farmer.hubs.adama,
+    },
   ];
 
   const displayPrices = marketPrices.length > 0 ? marketPrices : defaultCommodities;
@@ -72,36 +105,37 @@ export const FarmerDashboard: React.FC = () => {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white p-6 sm:p-8 shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                Producer Operations Portal
+                {t.farmer.portalBadge}
               </span>
               <span className="text-xs text-emerald-200">
-                {currentUser?.region || 'Oromia'}, Ethiopia
+                {currentUser?.region || (currentLanguage === 'am' ? 'ኦሮሚያ' : currentLanguage === 'om' ? 'Oromiyaa' : 'Oromia')}, {currentLanguage === 'am' ? 'ኢትዮጵያ' : currentLanguage === 'om' ? 'Itoophiyaa' : 'Ethiopia'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Welcome back, {currentUser?.fullName || 'Farmer Partner'}
+              {t.farmer.welcomeGreeting}, {currentUser?.fullName || t.farmer.farmerPartner}
             </h1>
-            <p className="text-sm text-emerald-100/80 max-w-xl">
-              Manage your harvest listings, track escrow trade settlements via Telebirr & CBE, and receive real-time AI agronomy guidance.
+            <p className="text-sm text-emerald-100/80 max-w-xl leading-relaxed">
+              {t.farmer.bannerDesc}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <LanguageSelector variant="pill" className="bg-emerald-950/70 border border-emerald-400/30 text-emerald-100" />
             <NavLink
               to="/farmer/listings"
               className="flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm shadow-lg shadow-emerald-500/30 transition-all hover:scale-102 cursor-pointer"
             >
               <Plus className="h-4 w-4" />
-              <span>List New Harvest</span>
+              <span>{t.farmer.listNewHarvest}</span>
             </NavLink>
             <NavLink
               to="/farmer/ai-advisor"
               className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm backdrop-blur-sm border border-white/20 transition-colors cursor-pointer"
             >
               <Sparkles className="h-4 w-4 text-emerald-300" />
-              <span>AI Crop Doctor</span>
+              <span>{t.farmer.aiCropDoctor}</span>
             </NavLink>
           </div>
         </div>
@@ -114,53 +148,53 @@ export const FarmerDashboard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-zinc-500 text-xs font-semibold">
-            <span>Active Produce Batches</span>
+            <span>{t.farmer.activeBatchesCard}</span>
             <Sprout className="h-4 w-4 text-emerald-600" />
           </div>
           <p className="text-2xl font-black text-zinc-900">{products.length}</p>
           <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Ready for buyer procurement
+            <CheckCircle2 className="h-3.5 w-3.5" /> {t.farmer.readyForProcurement}
           </p>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-zinc-500 text-xs font-semibold">
-            <span>Locked Escrow Balance</span>
+            <span>{t.farmer.lockedEscrowCard}</span>
             <Wallet className="h-4 w-4 text-blue-600" />
           </div>
-          <p className="text-2xl font-black text-zinc-900">42,500 <span className="text-sm font-bold text-zinc-500">ETB</span></p>
+          <p className="text-2xl font-black text-zinc-900">42,500 <span className="text-sm font-bold text-zinc-500">{t.common.currency}</span></p>
           <p className="text-xs text-blue-600 font-medium flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" /> Protected in Telebirr Custody
+            <Clock className="h-3.5 w-3.5" /> {t.farmer.telebirrCustody}
           </p>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-zinc-500 text-xs font-semibold">
-            <span>Total Produce Sold</span>
+            <span>{t.farmer.totalProduceSoldCard}</span>
             <Tractor className="h-4 w-4 text-amber-600" />
           </div>
-          <p className="text-2xl font-black text-zinc-900">18.4 <span className="text-sm font-bold text-zinc-500">Tons</span></p>
-          <p className="text-xs text-zinc-500 font-medium">98.4% On-time delivery rate</p>
+          <p className="text-2xl font-black text-zinc-900">18.4 <span className="text-sm font-bold text-zinc-500">{t.farmer.tonsUnit}</span></p>
+          <p className="text-xs text-zinc-500 font-medium">{t.farmer.deliveryRate}</p>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-zinc-200 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-zinc-500 text-xs font-semibold">
-            <span>Credit Score Rating</span>
+            <span>{t.farmer.creditRatingCard}</span>
             <TrendingUp className="h-4 w-4 text-purple-600" />
           </div>
-          <p className="text-2xl font-black text-zinc-900">Tier 1 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">Eligible</span></p>
-          <p className="text-xs text-zinc-500 font-medium">CBE & Awash Bank approved</p>
+          <p className="text-2xl font-black text-zinc-900">{t.farmer.tier1} <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{t.farmer.eligible}</span></p>
+          <p className="text-xs text-zinc-500 font-medium">{t.farmer.bankApproved}</p>
         </div>
       </div>
 
       {/* Market Prices Ticker Bar */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-xs">
-        <div className="flex items-center justify-between mb-3 border-b border-zinc-100 pb-3">
+        <div className="flex items-center justify-between mb-3 border-b border-zinc-100 pb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-emerald-600" />
-            <h2 className="text-sm font-bold text-zinc-900">Live Ethiopian Market Intelligence</h2>
+            <h2 className="text-sm font-bold text-zinc-900">{t.farmer.marketIntelTitle}</h2>
           </div>
-          <span className="text-[11px] font-semibold text-zinc-400">Updated Real-Time via ECX & Regional Hubs</span>
+          <span className="text-[11px] font-semibold text-zinc-400">{t.farmer.marketIntelSubtitle}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -168,12 +202,12 @@ export const FarmerDashboard: React.FC = () => {
             <div key={idx} className="p-3 rounded-xl bg-zinc-50 border border-zinc-100 flex flex-col justify-between">
               <span className="text-xs font-bold text-zinc-800 truncate">{item.commodity || item.crop}</span>
               <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-base font-black text-zinc-950">{item.currentPriceEtb?.toLocaleString() || item.priceEtb} ETB</span>
+                <span className="text-base font-black text-zinc-950">{item.currentPriceEtb?.toLocaleString() || item.priceEtb} {t.common.currency}</span>
                 <span className={`text-[11px] font-bold ${Number(item.changePercent || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {Number(item.changePercent || 0) >= 0 ? '+' : ''}{item.changePercent || 0}%
                 </span>
               </div>
-              <span className="text-[10px] text-zinc-400 mt-1 truncate">{item.marketHub || item.region || 'Addis Ababa'}</span>
+              <span className="text-[10px] text-zinc-400 mt-1 truncate">{item.marketHub || item.region || (currentLanguage === 'am' ? 'አዲስ አበባ' : currentLanguage === 'om' ? 'Finfinnee' : 'Addis Ababa')}</span>
             </div>
           ))}
         </div>
@@ -183,14 +217,14 @@ export const FarmerDashboard: React.FC = () => {
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-xs">
         <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-zinc-900">My Live Harvest Batches</h2>
-            <p className="text-xs text-zinc-500">Currently visible to commercial buyers and verified processors</p>
+            <h2 className="text-base font-bold text-zinc-900">{t.farmer.liveHarvestTitle}</h2>
+            <p className="text-xs text-zinc-500">{t.farmer.liveHarvestSubtitle}</p>
           </div>
           <NavLink
             to="/farmer/listings"
             className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
           >
-            <span>View All ({products.length})</span>
+            <span>{t.farmer.viewAll} ({products.length})</span>
             <ArrowUpRight className="h-3.5 w-3.5" />
           </NavLink>
         </div>
@@ -206,30 +240,30 @@ export const FarmerDashboard: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-zinc-900 text-sm">{p.name}</h3>
                     <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                      {p.grade || 'Grade 1'}
+                      {p.grade || (currentLanguage === 'am' ? 'ደረጃ 1' : currentLanguage === 'om' ? 'Sadarkaa 1' : 'Grade 1')}
                     </span>
                     {p.isOrganic && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200">
-                        Organic
+                        {t.farmer.organic}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    {p.farmLocation || p.region} • Available: {p.availableQuantity} {p.unit}
+                    {p.farmLocation || p.region} • {t.farmer.availablePrefix} {p.availableQuantity} {p.unit}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center justify-between sm:justify-end gap-6">
                 <div className="text-right">
-                  <span className="text-base font-black text-zinc-950">{p.pricePerUnitEtb} ETB</span>
+                  <span className="text-base font-black text-zinc-950">{p.pricePerUnitEtb} {t.common.currency}</span>
                   <span className="text-xs text-zinc-500"> / {p.unit}</span>
                 </div>
                 <NavLink
                   to="/farmer/listings"
                   className="px-3 py-1.5 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-700 hover:bg-zinc-100 transition-colors"
                 >
-                  Manage
+                  {t.farmer.manage}
                 </NavLink>
               </div>
             </div>
@@ -237,12 +271,12 @@ export const FarmerDashboard: React.FC = () => {
 
           {products.length === 0 && !loading && (
             <div className="p-8 text-center text-zinc-500">
-              <p className="text-sm font-semibold">No harvest batches listed yet.</p>
+              <p className="text-sm font-semibold">{t.farmer.noBatches}</p>
               <NavLink
                 to="/farmer/listings"
                 className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:underline"
               >
-                <Plus className="h-3.5 w-3.5" /> Create your first listing
+                <Plus className="h-3.5 w-3.5" /> {t.farmer.createFirstListing}
               </NavLink>
             </div>
           )}

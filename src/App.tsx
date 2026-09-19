@@ -6,14 +6,16 @@ import { ProductDetailModal } from './components/ProductDetailModal.tsx';
 import { CartDrawer } from './components/CartDrawer.tsx';
 import { NotificationsModal } from './components/NotificationsModal.tsx';
 import { CallCenterModal } from './components/CallCenterModal.tsx';
+import { LiveCallCenterWidget } from './components/LiveCallCenterWidget.tsx';
 import { ActionToast, ToastMessage } from './components/ActionToast.tsx';
 import { OrderConfirmationModal } from './components/OrderConfirmationModal.tsx';
 import { AgriLinkSurveyModal } from './components/AgriLinkSurveyModal.tsx';
-import { LanguageProvider } from './i18n/LanguageContext.tsx';
+import { LanguageProvider, useTranslation } from './i18n/LanguageContext.tsx';
 import { Product, ProductCategory, CartItem, Notification } from './types/index.ts';
 
 function AppContent() {
-  const { currentUser } = useAuth();
+  const { currentUser, token } = useAuth();
+  const { t } = useTranslation();
 
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -51,6 +53,19 @@ function AppContent() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // Direct Pay from Product or Marketplace
+  const [directPayInitial, setDirectPayInitial] = useState(false);
+
+  const handleSelectProduct = (product: Product) => {
+    setDirectPayInitial(false);
+    setSelectedProduct(product);
+  };
+
+  const handleDirectPayProduct = (product: Product) => {
+    setDirectPayInitial(true);
+    setSelectedProduct(product);
+  };
+
   // Initial Platform Data Fetching
   const fetchPlatformData = async () => {
     try {
@@ -70,7 +85,11 @@ function AppContent() {
 
   const fetchCartData = async () => {
     try {
-      const res = await fetch('/api/cart');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (currentUser?.id) headers['x-user-id'] = String(currentUser.id);
+
+      const res = await fetch('/api/cart', { headers });
       if (res.ok) {
         const data = await res.json();
         setCartItems(data.items || []);
@@ -87,19 +106,25 @@ function AppContent() {
   useEffect(() => {
     fetchPlatformData();
     fetchCartData();
-  }, []);
+  }, [currentUser?.id]);
 
   // Cart Handlers
   const handleAddToCart = async (product: any, quantity: number) => {
     try {
       const isInput = !!product.supplierId;
+      const unitPrice = isInput ? Number(product.priceEtb) : Number(product.pricePerUnitEtb);
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (currentUser?.id) headers['x-user-id'] = String(currentUser.id);
+
       const res = await fetch('/api/cart/items', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           productId: isInput ? undefined : product.id,
           inputProductId: isInput ? product.id : undefined,
           quantity,
+          unitPriceEtb: unitPrice || 100,
         }),
       });
 
@@ -107,8 +132,8 @@ function AppContent() {
         await fetchCartData();
         showToast({
           type: 'success',
-          title: 'Added to Procurement Cart',
-          description: `${quantity} ${product.unit || 'units'} of ${product.name} ready for checkout.`,
+          title: t.toast.itemAddedTitle,
+          description: `${quantity} ${product.unit || t.common.unit} of ${product.name} ${t.toast.itemAddedDesc}`,
         });
       }
     } catch (err) {
@@ -122,9 +147,13 @@ function AppContent() {
       return;
     }
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (currentUser?.id) headers['x-user-id'] = String(currentUser.id);
+
       const res = await fetch(`/api/cart/items/${itemId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ quantity: newQty }),
       });
       if (res.ok) fetchCartData();
@@ -135,13 +164,17 @@ function AppContent() {
 
   const handleRemoveItem = async (itemId: number) => {
     try {
-      const res = await fetch(`/api/cart/items/${itemId}`, { method: 'DELETE' });
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (currentUser?.id) headers['x-user-id'] = String(currentUser.id);
+
+      const res = await fetch(`/api/cart/items/${itemId}`, { method: 'DELETE', headers });
       if (res.ok) {
         fetchCartData();
         showToast({
           type: 'info',
-          title: 'Item Removed',
-          description: 'Cart updated successfully.',
+          title: t.toast.itemRemovedTitle,
+          description: t.toast.itemRemovedDesc,
         });
       }
     } catch (err) {
@@ -151,13 +184,17 @@ function AppContent() {
 
   const handleClearCart = async () => {
     try {
-      const res = await fetch('/api/cart', { method: 'DELETE' });
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (currentUser?.id) headers['x-user-id'] = String(currentUser.id);
+
+      const res = await fetch('/api/cart', { method: 'DELETE', headers });
       if (res.ok) {
         fetchCartData();
         showToast({
           type: 'info',
-          title: 'Cart Cleared',
-          description: 'All items removed from procurement basket.',
+          title: t.toast.cartClearedTitle,
+          description: t.toast.cartClearedDesc,
         });
       }
     } catch (err) {
@@ -171,8 +208,8 @@ function AppContent() {
     setConfirmedOrder(order);
     showToast({
       type: 'success',
-      title: 'Order Confirmed & Escrow Locked!',
-      description: `Order ${order?.orderNumber || ''} created with Telebirr / CBE payment guarantee.`,
+      title: t.toast.orderConfirmedTitle,
+      description: `Order ${order?.orderNumber || ''} ${t.toast.orderConfirmedDesc}`,
     });
   };
 
@@ -184,13 +221,14 @@ function AppContent() {
       <AppRouter
         categories={categories}
         featuredProducts={featuredProducts}
-        onSelectProduct={setSelectedProduct}
+        onSelectProduct={handleSelectProduct}
         onAddToCart={handleAddToCart}
         cartItemCount={cartTotalCount}
         onOpenCart={() => setCartDrawerOpen(true)}
         unreadNotifsCount={notifications.filter((n) => !n.isRead).length}
         onOpenNotifs={() => setNotifsModalOpen(true)}
         onOpenCallCenter={() => setCallCenterModalOpen(true)}
+        onDirectPay={handleDirectPayProduct}
       />
 
       {/* Global Procurement Cart Drawer */}
@@ -209,18 +247,18 @@ function AppContent() {
         currentUser={currentUser}
       />
 
-      {/* Product Detail Modal */}
+      {/* Product Detail Modal with Direct Pay Section & Cart Actions */}
       {selectedProduct && (
         <ProductDetailModal
           isOpen={!!selectedProduct}
           product={selectedProduct}
-          onClose={() => setSelectedProduct(null)}
-          onAddToCart={handleAddToCart}
-          onDirectOrder={(p, qty) => {
-            handleAddToCart(p, qty);
+          onClose={() => {
             setSelectedProduct(null);
-            setCartDrawerOpen(true);
+            setDirectPayInitial(false);
           }}
+          onAddToCart={handleAddToCart}
+          onOrderSuccess={handleOrderSuccess}
+          initialDirectPay={directPayInitial}
           onSelectFarmer={() => setSelectedProduct(null)}
         />
       )}
@@ -271,21 +309,24 @@ function AppContent() {
           } catch {}
           showToast({
             type: 'success',
-            title: 'Thank You for Rating AgriLink!',
-            description: `Your feedback (${rating}) has been recorded.`,
+            title: t.survey.thankYouTitle,
+            description: `${rating}`,
           });
         }}
       />
+
+      {/* Live Call Center Floating Widget */}
+      <LiveCallCenterWidget onOpen={() => setCallCenterModalOpen(true)} />
 
       {/* Floating Rating Trigger */}
       {!hasRated && (
         <button
           onClick={() => setSurveyModalOpen(true)}
-          className="fixed bottom-5 right-5 z-40 px-3.5 py-2 rounded-full bg-emerald-950/90 hover:bg-emerald-900 text-white text-xs font-bold border border-emerald-500/40 shadow-xl flex items-center gap-2 backdrop-blur-xs transition-transform hover:scale-105 cursor-pointer"
-          title="Rate Platform Experience"
+          className="fixed bottom-20 right-5 z-40 px-3.5 py-2 rounded-full bg-emerald-950/90 hover:bg-emerald-900 text-white text-xs font-bold border border-emerald-500/40 shadow-xl flex items-center gap-2 backdrop-blur-xs transition-transform hover:scale-105 cursor-pointer"
+          title={t.survey.modalTitle}
         >
           <span className="text-amber-300 text-sm">⭐</span>
-          <span className="hidden sm:inline">Rate AgriLink</span>
+          <span className="hidden sm:inline">{t.survey.modalTitle}</span>
         </button>
       )}
 

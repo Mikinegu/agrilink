@@ -26,6 +26,7 @@ import {
 import { ProductCategory, Product, User } from '../types/index.ts';
 import { HeroVideoPlayer } from './HeroVideoPlayer.tsx';
 import { IntroHero } from './IntroHero.tsx';
+import { InstitutionalSeals } from './InstitutionalSeals.tsx';
 import { BamlakSisayLogo, BesufkadAnbesLogo } from './FounderLogos.tsx';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 
@@ -66,6 +67,9 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       {/* Verified Agricultural Network Section */}
       <IntroHero onOpenBrand={onOpenBrand} />
+
+      {/* Institutional Regulatory & Settlement Compliance Banner */}
+      <InstitutionalSeals variant="banner" />
 
       {/* Quick Interactive Ecosystem Channels Bar */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -148,6 +152,46 @@ export const HomePage: React.FC<HomePageProps> = ({
               className="px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs sm:text-sm cursor-pointer transition-all shadow-lg flex items-center justify-center gap-2 group"
             >
               <span>{t.home.salvageButton}</span>
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </div>
+
+        {/* Core Technological Engine: 4 Strategic Pillars & Pitch Deck Showcase */}
+        <div className="mt-4 overflow-hidden rounded-3xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-emerald-950 p-6 sm:p-8 text-white border border-emerald-500/40 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span className="text-emerald-400 font-black">🔬</span> Core Innovation Architecture
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-white">
+              4 Core Strategic Pillars & Pitch Deck Engine
+            </h3>
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+              Mathematical degradation models, 2G IVR telephony with Amharic & Afaan Oromoo STT, algorithmic AVPS credit scoring, and PostGIS spatial logistics pooling.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <span className="px-2.5 py-1 rounded-lg text-2xs font-mono font-bold bg-zinc-800 text-emerald-400 border border-emerald-500/30">
+                P(t) Exponential Decay Math
+              </span>
+              <span className="px-2.5 py-1 rounded-lg text-2xs font-mono font-bold bg-zinc-800 text-blue-400 border border-blue-500/30">
+                2G Whisper Audio Pipeline
+              </span>
+              <span className="px-2.5 py-1 rounded-lg text-2xs font-mono font-bold bg-zinc-800 text-amber-400 border border-amber-500/30">
+                AVPS Credit Passport
+              </span>
+              <span className="px-2.5 py-1 rounded-lg text-2xs font-mono font-bold bg-zinc-800 text-purple-400 border border-purple-500/30">
+                PostGIS 10km Load Pooling
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+            <button
+              onClick={() => onNavigate('innovation')}
+              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-zinc-950 font-black text-xs sm:text-sm cursor-pointer transition-all shadow-lg flex items-center justify-center gap-2 group"
+            >
+              <span>Explore 4 Pillars & Pitch Deck</span>
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>

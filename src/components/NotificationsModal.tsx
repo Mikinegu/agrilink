@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Bell, CheckCircle2, Package, Landmark, Truck } from 'lucide-react';
+import { X, Bell } from 'lucide-react';
 import { Notification } from '../types/index.ts';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
 
 interface NotificationsModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   notifications,
   onMarkAsRead,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -23,7 +25,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-200">
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-emerald-700" />
-            <h3 className="text-base font-black text-zinc-900">Platform Notifications</h3>
+            <h3 className="text-base font-black text-zinc-900">{t.modalsAndCheckout.notificationsTitle}</h3>
           </div>
           <button
             onClick={onClose}
@@ -36,7 +38,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         <div className="max-h-80 overflow-y-auto space-y-3">
           {notifications.length === 0 ? (
             <div className="py-8 text-center text-xs text-zinc-500">
-              No recent notifications
+              {t.modalsAndCheckout.noNotifications}
             </div>
           ) : (
             notifications.map((n) => (

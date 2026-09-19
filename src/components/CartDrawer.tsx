@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { CartItem } from '../types/index.ts';
 import { EthiopianPaymentModal } from './EthiopianPaymentModal.tsx';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -45,34 +47,38 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onOrderSuccess,
   currentUser,
 }) => {
+  const { t } = useTranslation();
+  const { token, currentUser: authUser } = useAuth();
+  const activeUser = currentUser || authUser;
+
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
   const [deliveryModel, setDeliveryModel] = useState<'DIRECT' | 'HUB_CROSS_DOCK'>('DIRECT');
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  const [contactName, setContactName] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [deliveryRegion, setDeliveryRegion] = useState('Addis Ababa');
-  const [deliveryZone, setDeliveryZone] = useState('');
-  const [deliveryWoreda, setDeliveryWoreda] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [nationalIdNumber, setNationalIdNumber] = useState('');
-  const [tinNumber, setTinNumber] = useState('');
+  // Ethiopian KYC & Delivery Fields
+  const [deliveryAddress, setDeliveryAddress] = useState(activeUser?.address || '');
+  const [deliveryRegion, setDeliveryRegion] = useState(activeUser?.region || 'Addis Ababa');
+  const [deliveryZone, setDeliveryZone] = useState(activeUser?.zone || '');
+  const [deliveryWoreda, setDeliveryWoreda] = useState(activeUser?.woreda || '');
+  const [nationalIdNumber, setNationalIdNumber] = useState(activeUser?.nationalIdNumber || '');
+  const [tinNumber, setTinNumber] = useState(activeUser?.tinNumber || '');
+  const [contactName, setContactName] = useState(activeUser?.fullName || '');
+  const [contactPhone, setContactPhone] = useState(activeUser?.phone || '');
   const [orderNotes, setOrderNotes] = useState('');
-  const [formError, setFormError] = useState('');
-  const [completedOrder, setCompletedOrder] = useState<any>(null);
+
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState<any>(null);
+
+  // State for Ethiopian payment modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   if (!isOpen) return null;
 
   const handleValidateCheckout = (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError('');
-    if (!contactName.trim()) {
-      setFormError('Please enter your Full Name.');
-      return;
-    }
-    if (!contactPhone.trim() || contactPhone.replace(/\D/g, '').length < 9) {
-      setFormError('Please enter a valid Phone Number (e.g. 0961123330).');
+    setFormError(null);
+    if (!contactName.trim() || !contactPhone.trim()) {
+      setFormError('Please provide your Contact Name and Ethiopian Phone Number.');
       return;
     }
     if (!deliveryAddress.trim()) {
@@ -87,16 +93,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     setShowPaymentModal(false);
     setSubmitting(true);
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (activeUser?.id) headers['x-user-id'] = String(activeUser.id);
+
       const res = await fetch('/api/orders/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
+          userId: activeUser?.id,
+          buyerId: activeUser?.id,
           deliveryAddress,
           deliveryRegion,
           deliveryZone: deliveryZone || 'Zone 01',
           deliveryWoreda: deliveryWoreda || 'Woreda 01',
-          deliveryContactName: contactName,
-          deliveryContactPhone: contactPhone,
+          deliveryContactName: contactName || activeUser?.fullName || 'Customer',
+          deliveryContactPhone: contactPhone || activeUser?.phone || '+251 91 000 0000',
           deliveryModel,
           hubId: deliveryModel === 'HUB_CROSS_DOCK' ? 1 : null,
           nationalIdNumber: nationalIdNumber || undefined,
@@ -104,8 +116,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           payerAccountNumber: accountNumber,
           notes: orderNotes || undefined,
           paymentMethod: provider,
+          transactionRef: txRef,
         }),
       });
+
       if (res.ok) {
         const data = await res.json();
         setCompletedOrder(data.order);
@@ -136,9 +150,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 AgriLink Procurement & Escrow
               </span>
               <h2 className="text-lg font-black text-zinc-900">
-                {step === 'cart'     && `Order Cart (${cartItems.length} items)`}
-                {step === 'checkout' && 'Delivery Details'}
-                {step === 'success'  && 'Payment Verified & Confirmed'}
+                {step === 'cart'     && `${t.modalsAndCheckout.cartTitle} (${cartItems.length})`}
+                {step === 'checkout' && t.modalsAndCheckout.checkoutStepAddress}
+                {step === 'success'  && t.modalsAndCheckout.paymentSuccessTitle}
               </h2>
             </div>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer">
@@ -157,12 +171,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <div className="h-16 w-16 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto">
                       <Truck className="h-8 w-8" />
                     </div>
-                    <h3 className="text-base font-bold text-zinc-900">Your cart is empty</h3>
+                    <h3 className="text-base font-bold text-zinc-900">{t.modalsAndCheckout.cartEmpty}</h3>
                     <p className="text-xs text-zinc-500 max-w-xs mx-auto">
                       Browse verified fresh crops or agricultural inputs from certified Ethiopian producers.
                     </p>
                     <button onClick={onClose} className="mt-2 px-4 py-2 rounded-xl bg-emerald-700 text-white text-xs font-bold cursor-pointer">
-                      Start Sourcing Produce
+                      {t.buyer.exploreMarketplaceBtn}
                     </button>
                   </div>
                 ) : (
@@ -180,7 +194,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             <h4 className="text-xs font-bold text-zinc-900 truncate">{title || 'Agricultural Item'}</h4>
                             <span className="text-[10px] text-emerald-800 font-semibold block">{grade?.replace(/_/g, ' ')}</span>
                             <span className="text-xs font-extrabold text-zinc-900">
-                              {item.unitPriceEtb.toLocaleString()} ETB <span className="text-[10px] font-normal text-zinc-400">/{unit}</span>
+                              {item.unitPriceEtb.toLocaleString()} {t.common.currency} <span className="text-[10px] font-normal text-zinc-400">/{unit}</span>
                             </span>
                           </div>
                           <div className="flex flex-col items-end gap-2 shrink-0">
@@ -213,15 +227,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* Contact Info */}
                 <div className="space-y-3 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
                   <span className="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
-                    <UserIcon className="h-4 w-4 text-emerald-700" /> Contact Information
+                    <UserIcon className="h-4 w-4 text-emerald-700" /> {t.modalsAndCheckout.recipientNameLabel}
                   </span>
                   <div>
-                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">Full Name <span className="text-rose-600">*</span></label>
+                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">{t.modalsAndCheckout.recipientNameLabel} <span className="text-rose-600">*</span></label>
                     <input type="text" required value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="e.g. Abebe Balcha"
                       className="w-full px-3 py-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">Phone Number <span className="text-rose-600">*</span></label>
+                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">{t.modalsAndCheckout.recipientPhoneLabel} <span className="text-rose-600">*</span></label>
                     <div className="relative">
                       <input type="tel" required value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="e.g. 0961123330"
                         className="w-full pl-9 pr-3 py-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600" />
@@ -233,11 +247,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* Delivery Location */}
                 <div className="space-y-3 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
                   <span className="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 text-emerald-700" /> Delivery Location
+                    <MapPin className="h-4 w-4 text-emerald-700" /> {t.modalsAndCheckout.checkoutStepAddress}
                   </span>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="text-[11px] font-semibold text-zinc-600 block mb-1">Region</label>
+                      <label className="text-[11px] font-semibold text-zinc-600 block mb-1">{t.modalsAndCheckout.deliveryRegionLabel}</label>
                       <select value={deliveryRegion} onChange={(e) => setDeliveryRegion(e.target.value)}
                         className="w-full px-2 py-2 bg-white border border-zinc-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-600">
                         <option>Addis Ababa</option>
@@ -251,20 +265,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </select>
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-zinc-600 block mb-1">Sub-City / Zone</label>
+                      <label className="text-[11px] font-semibold text-zinc-600 block mb-1">{t.modalsAndCheckout.deliveryZoneLabel}</label>
                       <input type="text" value={deliveryZone} onChange={(e) => setDeliveryZone(e.target.value)} placeholder="e.g. Bole"
                         className="w-full px-2 py-2 bg-white border border-zinc-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-600" />
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-zinc-600 block mb-1">Woreda</label>
+                      <label className="text-[11px] font-semibold text-zinc-600 block mb-1">{t.modalsAndCheckout.deliveryWoredaLabel}</label>
                       <input type="text" value={deliveryWoreda} onChange={(e) => setDeliveryWoreda(e.target.value)} placeholder="e.g. 03"
                         className="w-full px-2 py-2 bg-white border border-zinc-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-600" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">Street Address / Landmark <span className="text-rose-600">*</span></label>
+                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">{t.modalsAndCheckout.streetAddressLabel} <span className="text-rose-600">*</span></label>
                     <input type="text" required value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="e.g. Near Medhanealem Mall, House #412"
-                      className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-600" />
+                      className="w-full px-3 py-2.5 bg-white border border-zinc-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600" />
                   </div>
                 </div>
 
@@ -275,21 +289,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <button type="button" onClick={() => setDeliveryModel('DIRECT')}
                       className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${deliveryModel === 'DIRECT' ? 'border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-600' : 'border-zinc-200 bg-white hover:bg-zinc-50'}`}>
                       <Truck className="h-4 w-4 mb-1 text-emerald-700" />
-                      <span className="text-xs block font-bold text-zinc-900">Direct Delivery</span>
-                      <span className="text-[10px] text-zinc-500">Farm ? Buyer Address</span>
+                      <span className="text-xs block font-bold text-zinc-900">{t.modalsAndCheckout.deliveryModelDirectTitle}</span>
+                      <span className="text-[10px] text-zinc-500">{t.modalsAndCheckout.deliveryModelDirectDesc}</span>
                     </button>
                     <button type="button" onClick={() => setDeliveryModel('HUB_CROSS_DOCK')}
                       className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${deliveryModel === 'HUB_CROSS_DOCK' ? 'border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-600' : 'border-zinc-200 bg-white hover:bg-zinc-50'}`}>
                       <Building2 className="h-4 w-4 mb-1 text-emerald-700" />
-                      <span className="text-xs block font-bold text-zinc-900">Hub Cross-Docking</span>
-                      <span className="text-[10px] text-zinc-500">Addis Cold-Hub</span>
+                      <span className="text-xs block font-bold text-zinc-900">{t.modalsAndCheckout.deliveryModelHubTitle}</span>
+                      <span className="text-[10px] text-zinc-500">{t.modalsAndCheckout.deliveryModelHubDesc}</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Notes */}
                 <div>
-                  <label className="text-[11px] font-semibold text-zinc-600 block mb-1">Order Notes (optional)</label>
+                  <label className="text-[11px] font-semibold text-zinc-600 block mb-1">{t.modalsAndCheckout.orderNotesLabel}</label>
                   <textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} rows={2} placeholder="Ripeness preference, gate instructions, etc."
                     className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-600 resize-none" />
                 </div>
@@ -303,7 +317,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
                     <CheckCircle2 className="h-10 w-10" />
                   </div>
-                  <h3 className="text-xl font-black text-zinc-900">Order Active & Driver Dispatched</h3>
+                  <h3 className="text-xl font-black text-zinc-900">{t.modalsAndCheckout.paymentSuccessTitle}</h3>
                   <p className="text-xs text-zinc-600">
                     Order <span className="font-mono font-bold text-zinc-900">#{completedOrder.orderNumber}</span>
                   </p>
@@ -314,21 +328,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <MessageSquare className="h-4 w-4" /> SMS Confirmation Sent
                   </div>
                   <p className="text-xs text-zinc-200 font-mono leading-relaxed">
-                    Dear <strong>{completedOrder.deliveryContactName}</strong>, your payment of{' '}
-                    <strong className="text-emerald-400">{Number(completedOrder.grandTotalEtb).toLocaleString()} ETB</strong>{' '}
-                    is confirmed for Order #{completedOrder.orderNumber}. Driver dispatched to{' '}
-                    <strong>{completedOrder.deliveryAddress}</strong>. ETA: 24�48 hrs. AgriLink.
+                    {t.modalsAndCheckout.paymentSuccessDesc}
                   </p>
                 </div>
 
                 <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 text-xs space-y-2">
-                  <div className="flex justify-between"><span className="text-zinc-500">Total Paid:</span><span className="font-extrabold text-zinc-900">{Number(completedOrder.grandTotalEtb).toLocaleString()} ETB</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">Total Paid:</span><span className="font-extrabold text-zinc-900">{Number(completedOrder.grandTotalEtb).toLocaleString()} {t.common.currency}</span></div>
                   <div className="flex justify-between"><span className="text-zinc-500">Delivery To:</span><span className="font-semibold text-zinc-800">{completedOrder.deliveryAddress}</span></div>
-                  <div className="flex justify-between"><span className="text-zinc-500">Logistics:</span><span className="font-bold text-emerald-700">Driver Assigned & In Transit</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-500">Logistics:</span><span className="font-bold text-emerald-700">{t.buyerWorkspace.statusInTransit}</span></div>
                 </div>
 
                 <button onClick={() => { setStep('cart'); onClose(); }} className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs cursor-pointer shadow-md">
-                  Done � View Active Deliveries
+                  {t.modalsAndCheckout.closeModalBtn}
                 </button>
               </div>
             )}
@@ -339,17 +350,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <div className="p-4 sm:p-6 bg-zinc-50 border-t border-zinc-200 space-y-3">
               <div className="space-y-1.5 text-xs text-zinc-600">
                 <div className="flex justify-between">
-                  <span>Subtotal</span><span className="font-bold text-zinc-900">{subtotalEtb.toLocaleString()} ETB</span>
+                  <span>Subtotal</span><span className="font-bold text-zinc-900">{subtotalEtb.toLocaleString()} {t.common.currency}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Logistics</span>
-                  <span className="font-bold text-zinc-900">{deliveryFeeEtb === 0 ? <span className="text-emerald-700">Free (Bulk)</span> : `${deliveryFeeEtb.toLocaleString()} ETB`}</span>
+                  <span className="font-bold text-zinc-900">{deliveryFeeEtb === 0 ? <span className="text-emerald-700">Free</span> : `${deliveryFeeEtb.toLocaleString()} ${t.common.currency}`}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Platform Fee (2%)</span><span className="font-bold text-zinc-900">{serviceFeeEtb.toLocaleString()} ETB</span>
+                  <span>Platform Fee (2%)</span><span className="font-bold text-zinc-900">{serviceFeeEtb.toLocaleString()} {t.common.currency}</span>
                 </div>
                 <div className="pt-2 border-t border-zinc-200 flex justify-between text-sm font-black text-emerald-950">
-                  <span>Total</span><span>{grandTotalEtb.toLocaleString()} ETB</span>
+                  <span>Total</span><span>{grandTotalEtb.toLocaleString()} {t.common.currency}</span>
                 </div>
               </div>
 
@@ -369,16 +380,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   ) : (
                     <button onClick={() => setStep('checkout')}
                       className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer">
-                      Proceed to Checkout <ArrowRight className="h-4 w-4" />
+                      {t.modalsAndCheckout.checkoutStepAddress} <ArrowRight className="h-4 w-4" />
                     </button>
                   )}
                 </>
               ) : (
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setStep('cart')} className="w-1/3 py-3 rounded-xl bg-zinc-200 hover:bg-zinc-300 text-zinc-800 font-bold text-xs cursor-pointer">Back</button>
+                  <button type="button" onClick={() => setStep('cart')} className="w-1/3 py-3 rounded-xl bg-zinc-200 hover:bg-zinc-300 text-zinc-800 font-bold text-xs cursor-pointer">{t.common.cancel}</button>
                   <button form="checkout-form" type="submit" disabled={submitting}
                     className="w-2/3 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-60">
-                    <ShieldCheck className="h-4 w-4" /> Choose Payment Method <ArrowRight className="h-4 w-4" />
+                    <ShieldCheck className="h-4 w-4" /> {t.modalsAndCheckout.proceedToPaymentBtn} <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
               )}

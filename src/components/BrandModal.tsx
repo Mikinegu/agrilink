@@ -1,5 +1,5 @@
 import React from 'react';
-import agrilinkLogo from '../assets/images/agrilink_logo_1787551924489.jpg';
+import officialLogoImg from '../assets/images/agrilink_official_logo.jpg';
 import {
   X,
   ShieldCheck,
@@ -54,12 +54,12 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onNavig
           <div className="flex items-center gap-4">
             <div className="relative group">
               <img
-                src={agrilinkLogo}
+                src={officialLogoImg}
                 alt="AgriLink Ethiopia Official Emblem"
-                className="h-20 w-20 rounded-2xl object-cover border-2 border-emerald-400/80 shadow-xl shadow-emerald-950/50 bg-white"
+                className="h-20 w-20 rounded-full object-cover border-2 border-amber-400/80 shadow-2xl shadow-emerald-950/80 ring-2 ring-emerald-500/50"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1 border-2 border-emerald-950">
+              <div className="absolute -bottom-1 -right-1 bg-amber-500 text-zinc-950 rounded-full p-1 border-2 border-emerald-950 shadow-md">
                 <CheckCircle2 className="h-3.5 w-3.5" />
               </div>
             </div>
@@ -98,9 +98,9 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onNavig
             <div className="flex items-center gap-4">
               <div className="p-2 bg-white rounded-2xl border border-zinc-200 shadow-sm">
                 <img
-                  src={agrilinkLogo}
+                  src={officialLogoImg}
                   alt="AgriLink High-Res Logo"
-                  className="h-24 w-24 rounded-xl object-cover"
+                  className="h-24 w-24 rounded-full object-cover ring-2 ring-amber-400/80 shadow-md"
                   referrerPolicy="no-referrer"
                 />
               </div>
@@ -116,8 +116,8 @@ export const BrandModal: React.FC<BrandModalProps> = ({ isOpen, onClose, onNavig
 
             <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
               <a
-                href={agrilinkLogo}
-                download="AgriLink-Ethiopia-Logo.jpg"
+                href={officialLogoImg}
+                download="AgriLink-Ethiopia-Official-Logo.jpg"
                 target="_blank"
                 rel="noreferrer"
                 className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition-colors cursor-pointer"

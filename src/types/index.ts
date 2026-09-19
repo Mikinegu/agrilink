@@ -357,6 +357,14 @@ export interface Order {
   delivery?: Delivery;
   payment?: Payment;
   hub?: Hub;
+  smartScore?: {
+    riskScore: number;
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+    kycVerified: boolean;
+    routeRecommendation: string;
+    perishabilityRisk: 'LOW' | 'MEDIUM' | 'HIGH';
+    autoDispatchEligible: boolean;
+  };
 }
 
 export interface Delivery {

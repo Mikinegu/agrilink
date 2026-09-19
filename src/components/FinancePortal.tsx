@@ -18,6 +18,8 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { FinanceApplication, User } from '../types/index.ts';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
+import { useNavigate } from 'react-router-dom';
 
 interface FinancePortalProps {
   currentUser: User | null;
@@ -26,6 +28,8 @@ interface FinancePortalProps {
 export const FinancePortal: React.FC<FinancePortalProps> = ({
   currentUser,
 }) => {
+  const navigate = useNavigate();
+  const { t } = useTranslation();
   const isUnderwriter =
     currentUser?.role === 'PLATFORM_ADMIN' ||
     currentUser?.role === 'FINANCIAL_INSTITUTION';
@@ -170,14 +174,10 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                 : 'Awash Bank Agricultural Credit Partnership'}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black">
-              {isUnderwriter
-                ? 'Data-Driven Agri-Credit & Working Capital Underwriting'
-                : 'Farmer Agricultural Credit & Input Financing'}
+              {t.financeWorkspace.portalTitle}
             </h1>
             <p className="text-xs sm:text-sm text-teal-200/80 mt-1 max-w-2xl">
-              {isUnderwriter
-                ? 'Review smallholder and commercial farmer credit applications against verified sales records, satellite GIS crop telemetry, and escrow performance.'
-                : 'Apply for seasonal input loans, solar drip irrigation, and working capital underwritten by Awash Bank via your verified AgriLink harvests and escrow history.'}
+              {t.financeWorkspace.portalSubtitle}
             </p>
           </div>
 
@@ -187,7 +187,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
               onClick={() => setShowApplyModal(true)}
               className="px-5 py-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow-md flex items-center gap-2 shrink-0 cursor-pointer transition-all hover:scale-105"
             >
-              <Plus className="h-4 w-4" /> Apply for Farm Credit
+              <Plus className="h-4 w-4" /> {t.financeWorkspace.applyForCreditBtn}
             </button>
           )}
 
@@ -200,18 +200,44 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
         </div>
       </div>
 
+      {/* AVPS Alternative Credit Scoring Banner */}
+      <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-amber-950 text-white border border-amber-500/40 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs sm:text-sm text-white">Algorithmically Verified Production Score (AVPS) Active</span>
+              <span className="font-mono text-2xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">AVPS = w₁F + w₂Q + w₃V + w₄T</span>
+            </div>
+            <p className="text-2xs sm:text-xs text-zinc-400 mt-0.5">
+              Replaces unholdable land titles with unalterable escrow transaction metrics (Fulfillment, Quality, Volume, Tenure) for pre-harvest credit lines.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => navigate('/innovation')}
+          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer shadow-md"
+        >
+          <span>Inspect AVPS Credit Passport</span>
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-2xs">
           <span className="text-xs text-zinc-500 font-semibold block">
-            {isUnderwriter ? 'Total Capital Deployed' : 'My Approved Credit Limit'}
+            {isUnderwriter ? t.financeWorkspace.approvedDisbursedCard : t.financeWorkspace.approvedDisbursedCard}
           </span>
           <span className="text-2xl font-black text-teal-950 mt-1 block">
             {totalApprovedOrDisbursed > 0
-              ? `${totalApprovedOrDisbursed.toLocaleString()} ETB`
+              ? `${totalApprovedOrDisbursed.toLocaleString()} ${t.common.currency}`
               : isUnderwriter
-              ? '350,000 ETB'
-              : '0 ETB'}
+              ? `350,000 ${t.common.currency}`
+              : `0 ${t.common.currency}`}
           </span>
           <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1 mt-2">
             <CheckCircle2 className="h-3.5 w-3.5" /> 100% Repayment on AgriLink Escrow
@@ -220,7 +246,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
 
         <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-2xs">
           <span className="text-xs text-zinc-500 font-semibold block">
-            {isUnderwriter ? 'Pending Underwriting Queue' : 'My Active Applications'}
+            {isUnderwriter ? t.financeWorkspace.pendingAppraisalsCard : t.financeWorkspace.totalApplicationsCard}
           </span>
           <span className="text-2xl font-black text-zinc-900 mt-1 block">
             {isUnderwriter ? `${pendingCount} Files Pending` : `${loans.length} File${loans.length !== 1 ? 's' : ''}`}
@@ -231,10 +257,10 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-2xs">
-          <span className="text-xs text-zinc-500 font-semibold block">Lending Rate & Terms</span>
+          <span className="text-xs text-zinc-500 font-semibold block">{t.financeWorkspace.creditScoreAvgCard}</span>
           <span className="text-2xl font-black text-zinc-900 mt-1 block">8.5% p.a.</span>
           <span className="text-[11px] text-zinc-500 font-medium mt-2 block">
-            Subsidized for verified agricultural producers
+            {t.financeWorkspace.tier1Eligibility}
           </span>
         </div>
       </div>
@@ -244,12 +270,10 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
             <h3 className="text-lg font-bold text-zinc-900">
-              {isUnderwriter ? 'Farmer Credit Appraisal Desk' : 'My Credit Applications & Loan History'}
+              {t.financeWorkspace.applicationsTableTitle}
             </h3>
             <p className="text-xs text-zinc-500 mt-0.5">
-              {isUnderwriter
-                ? 'Evaluate submitted applications against harvest yields, verified produce orders, and farm parcel telemetry to approve or decline capital.'
-                : 'Track the status, underwriter reviews, and escrow repayment schedules of your working capital applications.'}
+              {t.financeWorkspace.applicationsTableSubtitle}
             </p>
           </div>
           <span
@@ -266,7 +290,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
         {loading ? (
           <div className="py-12 text-center text-xs text-zinc-500 flex items-center justify-center gap-2">
             <span className="h-4 w-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></span>
-            Loading loan applications...
+            {t.common.loading}
           </div>
         ) : loans.length === 0 ? (
           <div className="py-12 text-center text-zinc-500 space-y-3 bg-zinc-50/50 rounded-2xl border border-dashed border-zinc-200 p-8">
@@ -284,7 +308,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                 onClick={() => setShowApplyModal(true)}
                 className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold cursor-pointer"
               >
-                + Apply for Farm Credit
+                + {t.financeWorkspace.applyForCreditBtn}
               </button>
             )}
           </div>
@@ -312,7 +336,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
 
                   <div className="flex items-center gap-3">
                     <span className="text-base font-black text-zinc-900">
-                      {loan.amountRequestedEtb.toLocaleString()} ETB
+                      {loan.amountRequestedEtb.toLocaleString()} {t.common.currency}
                     </span>
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -330,28 +354,28 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
 
                 {/* Purpose */}
                 <p className="text-xs text-zinc-600 bg-white p-3 rounded-xl border border-zinc-200">
-                  <strong className="text-zinc-900">Credit Purpose:</strong> {loan.purpose}
+                  <strong className="text-zinc-900">{t.financeWorkspace.purposeLabel}:</strong> {loan.purpose}
                 </p>
 
                 {/* Details Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-white p-3.5 rounded-xl border border-zinc-200">
                   <div>
-                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">Target Crop</span>
+                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">{t.financeWorkspace.thTargetCrop}</span>
                     <span className="font-bold text-zinc-900">{loan.targetCrop}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">Expected Yield</span>
+                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">{t.financeWorkspace.expectedYieldLabel}</span>
                     <span className="font-bold text-zinc-900">{loan.expectedYieldTons} Tons</span>
                   </div>
                   <div>
-                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">Expected Revenue</span>
+                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">{t.financeWorkspace.expectedRevenueLabel}</span>
                     <span className="font-bold text-emerald-800">
-                      {loan.expectedRevenueEtb ? `${loan.expectedRevenueEtb.toLocaleString()} ETB` : '—'}
+                      {loan.expectedRevenueEtb ? `${loan.expectedRevenueEtb.toLocaleString()} ${t.common.currency}` : '—'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">Tenor</span>
-                    <span className="font-bold text-zinc-900">{loan.repaymentPeriodMonths} Months</span>
+                    <span className="text-zinc-400 block text-[10px] uppercase font-bold">{t.financeWorkspace.thRepaymentPeriod}</span>
+                    <span className="font-bold text-zinc-900">{loan.repaymentPeriodMonths} {t.financeWorkspace.monthsUnit}</span>
                   </div>
                 </div>
 
@@ -364,17 +388,16 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
 
                 {/* ── ROLE-ISOLATED STATUS & ACTIONS ──────────────────────────────── */}
 
-                {/* 1. If Farmer: Show informative read-only status banner (No approve buttons!) */}
+                {/* 1. If Farmer: Show informative read-only status banner */}
                 {isFarmer && (
                   <div className="pt-1">
                     {loan.status === 'SUBMITTED' && (
                       <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900">
                         <Clock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                         <div>
-                          <p className="font-bold">Under Bank Appraisal</p>
+                          <p className="font-bold">{t.financeWorkspace.pendingAppraisalsCard}</p>
                           <p className="text-[11px] text-amber-800 mt-0.5">
                             Your application is currently under review by Awash Bank credit officers and Platform Admin.
-                            Algorithmic telemetry assessment and historical sales verification are in progress.
                           </p>
                         </div>
                       </div>
@@ -385,7 +408,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                         <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                         <div>
                           <p className="font-bold">
-                            Capital Approved & Disbursed ({loan.approvedAmountEtb?.toLocaleString() || loan.amountRequestedEtb.toLocaleString()} ETB)
+                            {t.financeWorkspace.approvedDisbursedCard} ({loan.approvedAmountEtb?.toLocaleString() || loan.amountRequestedEtb.toLocaleString()} {t.common.currency})
                           </p>
                           <p className="text-[11px] text-emerald-800 mt-0.5">
                             Awash Bank has authorized disbursement. Repayments are synchronized with your upcoming harvest sales via AgriLink Escrow.
@@ -398,7 +421,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                       <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-rose-50/80 border border-rose-200 text-xs text-rose-900">
                         <XCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
                         <div>
-                          <p className="font-bold">Application Declined</p>
+                          <p className="font-bold">{t.financeWorkspace.decisionReject}</p>
                           <p className="text-[11px] text-rose-800 mt-0.5">
                             {loan.reviewNotes || 'The application did not satisfy the minimum required sales history criteria.'}
                           </p>
@@ -420,13 +443,13 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                         onClick={() => openDecisionModal(loan, 'REJECTED')}
                         className="px-4 py-2 rounded-xl bg-zinc-200 hover:bg-rose-100 hover:text-rose-800 text-zinc-800 text-xs font-bold cursor-pointer transition-colors"
                       >
-                        Decline
+                        {t.financeWorkspace.decisionReject}
                       </button>
                       <button
                         onClick={() => openDecisionModal(loan, 'APPROVED')}
                         className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5 transition-all hover:scale-105"
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Approve & Disburse Capital
+                        <CheckCircle2 className="h-3.5 w-3.5" /> {t.financeWorkspace.decisionApprove}
                       </button>
                     </div>
                   </div>
@@ -457,18 +480,18 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                 {decisionType === 'APPROVED' ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
               </div>
               <h3 className="text-base font-black text-zinc-900">
-                {decisionType === 'APPROVED' ? 'Approve & Disburse Capital' : 'Decline Credit Application'}
+                {decisionType === 'APPROVED' ? t.financeWorkspace.decisionApprove : t.financeWorkspace.decisionReject}
               </h3>
             </div>
             <p className="text-xs text-zinc-500 mb-4">
-              Farmer: <strong>{decisionModalLoan.farmerName}</strong> • Requested: <strong>{decisionModalLoan.amountRequestedEtb.toLocaleString()} ETB</strong>
+              Farmer: <strong>{decisionModalLoan.farmerName}</strong> • Requested: <strong>{decisionModalLoan.amountRequestedEtb.toLocaleString()} {t.common.currency}</strong>
             </p>
 
             <div className="space-y-3">
               {decisionType === 'APPROVED' && (
                 <div>
                   <label className="text-xs font-bold text-zinc-700 block mb-1">
-                    Approved Amount (ETB)
+                    {t.financeWorkspace.approvedAmountLabel}
                   </label>
                   <input
                     type="number"
@@ -481,7 +504,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
 
               <div>
                 <label className="text-xs font-bold text-zinc-700 block mb-1">
-                  Bank Appraisal Memo / Notes
+                  {t.financeWorkspace.underwriterNotesLabel}
                 </label>
                 <textarea
                   rows={3}
@@ -498,7 +521,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                   disabled={isSubmittingDecision}
                   className="w-1/2 py-2.5 rounded-xl bg-zinc-100 font-bold text-xs text-zinc-700 hover:bg-zinc-200 cursor-pointer"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="button"
@@ -512,10 +535,8 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                 >
                   {isSubmittingDecision ? (
                     <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  ) : decisionType === 'APPROVED' ? (
-                    'Confirm Disbursement'
                   ) : (
-                    'Confirm Rejection'
+                    t.financeWorkspace.confirmDecisionBtn
                   )}
                 </button>
               </div>
@@ -528,12 +549,12 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
       {showApplyModal && (
         <div className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-zinc-200 animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-black text-zinc-900 mb-1">Apply for Agricultural Working Capital</h3>
-            <p className="text-xs text-zinc-500 mb-4">Underwritten by Awash Bank via AgriLink verified sales</p>
+            <h3 className="text-lg font-black text-zinc-900 mb-1">{t.financeWorkspace.applyModalTitle}</h3>
+            <p className="text-xs text-zinc-500 mb-4">{t.financeWorkspace.portalSubtitle}</p>
 
             <form onSubmit={handleApplyLoan} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-zinc-700 block mb-1">Loan Type</label>
+                <label className="text-xs font-bold text-zinc-700 block mb-1">{t.financeWorkspace.thLoanType}</label>
                 <select
                   value={loanType}
                   onChange={(e) => setLoanType(e.target.value)}
@@ -548,7 +569,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-700 block mb-1">Amount (ETB)</label>
+                  <label className="text-xs font-bold text-zinc-700 block mb-1">{t.financeWorkspace.amountRequestedLabel}</label>
                   <input
                     type="number"
                     required
@@ -559,21 +580,21 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-zinc-700 block mb-1">Repayment Tenor</label>
+                  <label className="text-xs font-bold text-zinc-700 block mb-1">{t.financeWorkspace.repaymentPeriodLabel}</label>
                   <select
                     value={repaymentPeriodMonths}
                     onChange={(e) => setRepaymentPeriodMonths(e.target.value)}
                     className="w-full px-3 py-2 border border-zinc-300 rounded-xl text-xs font-medium focus:ring-1 focus:ring-teal-600 outline-none"
                   >
-                    <option value="6">6 Months</option>
-                    <option value="12">12 Months (Standard Seasonal)</option>
-                    <option value="24">24 Months (Capital Equipment)</option>
+                    <option value="6">6 {t.financeWorkspace.monthsUnit}</option>
+                    <option value="12">12 {t.financeWorkspace.monthsUnit}</option>
+                    <option value="24">24 {t.financeWorkspace.monthsUnit}</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-700 block mb-1">Loan Purpose & Allocation</label>
+                <label className="text-xs font-bold text-zinc-700 block mb-1">{t.financeWorkspace.purposeLabel}</label>
                 <textarea
                   rows={2}
                   required
@@ -586,7 +607,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-700 block mb-1">Target Crop</label>
+                  <label className="text-xs font-bold text-zinc-700 block mb-1">{t.financeWorkspace.thTargetCrop}</label>
                   <input
                     type="text"
                     required
@@ -597,7 +618,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-zinc-700 block mb-1">Expected Revenue (ETB)</label>
+                  <label className="text-xs font-bold text-zinc-700 block mb-1">{t.financeWorkspace.expectedRevenueLabel}</label>
                   <input
                     type="number"
                     required
@@ -615,13 +636,13 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                   onClick={() => setShowApplyModal(false)}
                   className="w-1/2 py-2.5 rounded-xl bg-zinc-100 font-bold text-xs text-zinc-700 hover:bg-zinc-200 cursor-pointer"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="submit"
                   className="w-1/2 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 font-bold text-xs text-white cursor-pointer shadow-md"
                 >
-                  Submit for Bank Review
+                  {t.financeWorkspace.submitApplicationBtn}
                 </button>
               </div>
             </form>

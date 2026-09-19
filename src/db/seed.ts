@@ -1843,7 +1843,325 @@ export async function seedDatabase(force = false) {
       await db.insert(carts).values({ userId: usr.id });
     }
 
-    console.log('AgriLink database seeded successfully with all 13 categories, subcategories, verified farmers, and authentic Ethiopian agricultural products!');
+    // ==========================================
+    // 9. SEED REALISTIC ORDERS, PAYMENTS & DELIVERIES
+    // ==========================================
+    console.log('Seeding initial agricultural orders, escrow payments, and delivery dispatches...');
+    const allProds = await db.select().from(products);
+    const allDrivers = await db.select().from(drivers);
+    const driverId = allDrivers[0]?.id || null;
+
+    const teffProd = allProds.find((p) => p.name.includes('Teff')) || allProds[0];
+    const chickpeaProd = allProds.find((p) => p.name.includes('Chickpeas')) || allProds[1] || allProds[0];
+    const lentilProd = allProds.find((p) => p.name.includes('Lentil')) || allProds[2] || allProds[0];
+    const wheatProd = allProds.find((p) => p.name.includes('Wheat')) || allProds[3] || allProds[0];
+    const coffeeProd = allProds.find((p) => p.name.includes('Coffee')) || allProds[4] || allProds[0];
+
+    const buyerYonas = seededUsers[4];
+    const buyerSara = seededUsers[5];
+
+    // Order 1: Confirmed Teff Grain purchase by Bole Fresh Marts
+    const ord1Values = {
+      orderNumber: 'AGR-2026-09-1001',
+      buyerId: buyerYonas.id,
+      orderType: 'PRODUCE',
+      totalAmountEtb: 59000,
+      deliveryFeeEtb: 0,
+      serviceFeeEtb: 1180,
+      grandTotalEtb: 60180,
+      paymentStatus: 'PAID',
+      orderStatus: 'CONFIRMED',
+      deliveryModel: 'DIRECT',
+      deliveryAddress: 'Bole Medhanealem, House 842, Addis Ababa',
+      deliveryRegion: 'Addis Ababa',
+      deliveryZone: 'Bole Subcity',
+      deliveryWoreda: 'Woreda 03',
+      nationalIdNumber: 'FAYDA-ET-88392019',
+      tinNumber: '0039201928',
+      payerAccountNumber: '0914456677',
+      deliveryContactName: buyerYonas.fullName,
+      deliveryContactPhone: buyerYonas.phone,
+      requestedDeliveryDate: '2026-09-22',
+      notes: 'Direct bulk delivery for retail store restocking.',
+    };
+    const [createdOrd1] = await db.insert(orders).values(ord1Values).returning();
+
+    await db.insert(orderItems).values({
+      orderId: createdOrd1.id,
+      itemType: 'PRODUCE',
+      productId: teffProd.id,
+      sellerId: teffProd.farmerId,
+      name: teffProd.name,
+      grade: teffProd.grade,
+      unit: teffProd.unit,
+      quantity: 5,
+      unitPriceEtb: teffProd.pricePerUnitEtb,
+      subtotalEtb: 59000,
+      lotBatchNumber: teffProd.lotBatchNumber,
+      status: 'CONFIRMED',
+    });
+
+    await db.insert(payments).values({
+      orderId: createdOrd1.id,
+      userId: buyerYonas.id,
+      amountEtb: 60180,
+      currency: 'ETB',
+      provider: 'TELEBIRR',
+      transactionRef: 'TX-TB-20260918-782914',
+      status: 'PAID',
+      paymentMethod: 'MOBILE_MONEY',
+      payerAccountNumber: '0914456677',
+      paidAt: new Date(),
+    });
+
+    await db.insert(deliveries).values({
+      orderId: createdOrd1.id,
+      driverId,
+      deliveryModel: 'DIRECT',
+      pickupLocation: 'Wonji Horizon Main Estate, East Shewa',
+      dropoffLocation: 'Bole Medhanealem, House 842, Addis Ababa',
+      status: 'ASSIGNED',
+      estimatedArrival: 'Estimated Delivery in 24 Hours',
+    });
+
+    // Order 2: In-transit Kabuli Chickpeas for Ethiopian Skylight Hotel
+    const ord2Values = {
+      orderNumber: 'AGR-2026-09-1002',
+      buyerId: buyerSara.id,
+      orderType: 'PRODUCE',
+      totalAmountEtb: 116000,
+      deliveryFeeEtb: 0,
+      serviceFeeEtb: 2320,
+      grandTotalEtb: 118320,
+      paymentStatus: 'ESCROW_HELD',
+      orderStatus: 'IN_TRANSIT',
+      deliveryModel: 'HUB_CROSS_DOCK',
+      hubId: 1,
+      deliveryAddress: 'Bole International Airport Corridor, Addis Ababa',
+      deliveryRegion: 'Addis Ababa',
+      deliveryZone: 'Bole Subcity',
+      deliveryWoreda: 'Woreda 01',
+      nationalIdNumber: 'FAYDA-ET-55192837',
+      tinNumber: '0018274950',
+      payerAccountNumber: '100029384812',
+      deliveryContactName: buyerSara.fullName,
+      deliveryContactPhone: buyerSara.phone,
+      requestedDeliveryDate: '2026-09-20',
+      notes: 'Institutional pulse supply for airline catering & banquets.',
+    };
+    const [createdOrd2] = await db.insert(orders).values(ord2Values).returning();
+
+    await db.insert(orderItems).values({
+      orderId: createdOrd2.id,
+      itemType: 'PRODUCE',
+      productId: chickpeaProd.id,
+      sellerId: chickpeaProd.farmerId,
+      name: chickpeaProd.name,
+      grade: chickpeaProd.grade,
+      unit: chickpeaProd.unit,
+      quantity: 800,
+      unitPriceEtb: chickpeaProd.pricePerUnitEtb,
+      subtotalEtb: 116000,
+      lotBatchNumber: chickpeaProd.lotBatchNumber,
+      status: 'DISPATCHED',
+    });
+
+    await db.insert(payments).values({
+      orderId: createdOrd2.id,
+      userId: buyerSara.id,
+      amountEtb: 118320,
+      currency: 'ETB',
+      provider: 'CBE_BIRR',
+      transactionRef: 'TX-CBE-20260915-992144',
+      status: 'ESCROW_HELD',
+      paymentMethod: 'CORE_BANKING_TRANSFER',
+      payerAccountNumber: '100029384812',
+      paidAt: new Date(Date.now() - 86400000),
+    });
+
+    await db.insert(deliveries).values({
+      orderId: createdOrd2.id,
+      driverId,
+      deliveryModel: 'HUB_CROSS_DOCK',
+      hubId: 1,
+      pickupLocation: 'Dejen Valley Grain Cluster, Amhara',
+      dropoffLocation: 'Bole International Airport Corridor, Addis Ababa',
+      status: 'IN_TRANSIT',
+      estimatedArrival: 'Today by 4:30 PM (Cross-dock inspected)',
+    });
+
+    // Order 3: Delivered multi-item harvest (Lentils + Durum Wheat) with Escrow Released to Farmer
+    const ord3Values = {
+      orderNumber: 'AGR-2026-09-1003',
+      buyerId: buyerYonas.id,
+      orderType: 'PRODUCE',
+      totalAmountEtb: 40350,
+      deliveryFeeEtb: 0,
+      serviceFeeEtb: 807,
+      grandTotalEtb: 41157,
+      paymentStatus: 'RELEASED_TO_FARMER',
+      orderStatus: 'DELIVERED',
+      deliveryModel: 'DIRECT',
+      deliveryAddress: 'Bole Medhanealem, House 842, Addis Ababa',
+      deliveryRegion: 'Addis Ababa',
+      deliveryZone: 'Bole Subcity',
+      deliveryWoreda: 'Woreda 03',
+      nationalIdNumber: 'FAYDA-ET-88392019',
+      tinNumber: '0039201928',
+      deliveryContactName: buyerYonas.fullName,
+      deliveryContactPhone: buyerYonas.phone,
+      requestedDeliveryDate: '2026-09-12',
+      actualDeliveryDate: '2026-09-13',
+      notes: 'Grain & pulse consignment completed and signed.',
+    };
+    const [createdOrd3] = await db.insert(orders).values(ord3Values).returning();
+
+    await db.insert(orderItems).values([
+      {
+        orderId: createdOrd3.id,
+        itemType: 'PRODUCE',
+        productId: lentilProd.id,
+        sellerId: lentilProd.farmerId,
+        name: lentilProd.name,
+        grade: lentilProd.grade,
+        unit: lentilProd.unit,
+        quantity: 150,
+        unitPriceEtb: lentilProd.pricePerUnitEtb,
+        subtotalEtb: 18750,
+        lotBatchNumber: lentilProd.lotBatchNumber,
+        status: 'DELIVERED',
+      },
+      {
+        orderId: createdOrd3.id,
+        itemType: 'PRODUCE',
+        productId: wheatProd.id,
+        sellerId: wheatProd.farmerId,
+        name: wheatProd.name,
+        grade: wheatProd.grade,
+        unit: wheatProd.unit,
+        quantity: 3,
+        unitPriceEtb: wheatProd.pricePerUnitEtb,
+        subtotalEtb: 21600,
+        lotBatchNumber: wheatProd.lotBatchNumber,
+        status: 'DELIVERED',
+      },
+    ]);
+
+    await db.insert(payments).values({
+      orderId: createdOrd3.id,
+      userId: buyerYonas.id,
+      amountEtb: 41157,
+      currency: 'ETB',
+      provider: 'CHAPA',
+      transactionRef: 'TX-CHP-20260910-334182',
+      status: 'RELEASED_TO_FARMER',
+      paymentMethod: 'ONLINE_CARD_OR_WALLET',
+      paidAt: new Date(Date.now() - 86400000 * 5),
+    });
+
+    await db.insert(deliveries).values({
+      orderId: createdOrd3.id,
+      driverId,
+      deliveryModel: 'DIRECT',
+      pickupLocation: 'Gojjam Grain & Honey Cooperative, Amhara',
+      dropoffLocation: 'Bole Medhanealem, House 842, Addis Ababa',
+      status: 'DELIVERED',
+      actualDeliveredAt: new Date(Date.now() - 86400000 * 4),
+      proofNotes: 'Signed by recipient store supervisor. Quality inspected upon unloading.',
+      recipientSignature: 'Yonas Alemu (Digital Pass Verified)',
+    });
+
+    // Order 4: Speciality Coffee micro-lot preparing for dispatch
+    const ord4Values = {
+      orderNumber: 'AGR-2026-09-1004',
+      buyerId: buyerSara.id,
+      orderType: 'PRODUCE',
+      totalAmountEtb: 32500,
+      deliveryFeeEtb: 0,
+      serviceFeeEtb: 650,
+      grandTotalEtb: 33150,
+      paymentStatus: 'PAID',
+      orderStatus: 'PREPARING',
+      deliveryModel: 'DIRECT',
+      deliveryAddress: 'Skylight Gourmet Coffee Bar, Terminal 2, Addis Ababa',
+      deliveryRegion: 'Addis Ababa',
+      deliveryContactName: buyerSara.fullName,
+      deliveryContactPhone: buyerSara.phone,
+      requestedDeliveryDate: '2026-09-24',
+      notes: 'Single-origin specialty micro-lot with moisture pass cert.',
+    };
+    const [createdOrd4] = await db.insert(orders).values(ord4Values).returning();
+
+    await db.insert(orderItems).values({
+      orderId: createdOrd4.id,
+      itemType: 'PRODUCE',
+      productId: coffeeProd.id,
+      sellerId: coffeeProd.farmerId,
+      name: coffeeProd.name,
+      grade: coffeeProd.grade,
+      unit: coffeeProd.unit,
+      quantity: 50,
+      unitPriceEtb: coffeeProd.pricePerUnitEtb,
+      subtotalEtb: 32500,
+      lotBatchNumber: coffeeProd.lotBatchNumber,
+      status: 'PREPARING',
+    });
+
+    await db.insert(payments).values({
+      orderId: createdOrd4.id,
+      userId: buyerSara.id,
+      amountEtb: 33150,
+      currency: 'ETB',
+      provider: 'AWASH_BIRR',
+      transactionRef: 'TX-AWB-20260917-551299',
+      status: 'PAID',
+      paymentMethod: 'MOBILE_WALLET',
+      paidAt: new Date(Date.now() - 3600000 * 12),
+    });
+
+    await db.insert(deliveries).values({
+      orderId: createdOrd4.id,
+      driverId: null,
+      deliveryModel: 'DIRECT',
+      pickupLocation: 'Yirga Micro-Lots Estate, Sidama',
+      dropoffLocation: 'Skylight Gourmet Coffee Bar, Terminal 2, Addis Ababa',
+      status: 'PENDING_ASSIGNMENT',
+      estimatedArrival: 'Estimated Ready for Pick-up Tomorrow',
+    });
+
+    // Status History & Notifications
+    const allCreatedOrders = [createdOrd1, createdOrd2, createdOrd3, createdOrd4];
+    for (const ord of allCreatedOrders) {
+      await db.insert(orderStatusHistory).values({
+        orderId: ord.id,
+        status: ord.orderStatus,
+        notes: `Order created and verified on platform. Current status: ${ord.orderStatus}`,
+        actorId: ord.buyerId,
+      });
+
+      await db.insert(notifications).values({
+        userId: ord.buyerId,
+        title: `Order Verified: ${ord.orderNumber}`,
+        message: `Your order for ${ord.grandTotalEtb.toLocaleString()} ETB is active. Status: ${ord.orderStatus}.`,
+        type: 'ORDER',
+        linkUrl: '/buyer/orders',
+      });
+    }
+
+    // Admin audit log
+    await db.insert(auditLogs).values({
+      userId: seededUsers[9].id, // Platform Admin Hailemariam
+      action: 'SYSTEM_INITIAL_SEED',
+      entityType: 'ORDERS_PLATFORM',
+      entityId: 1,
+      details: {
+        totalOrdersSeeded: 4,
+        totalGmvEtb: 252807,
+        status: 'OPERATIONAL',
+      },
+    });
+
+    console.log('AgriLink database seeded successfully with authentic Ethiopian agricultural products, orders, escrow payments, and live logistics!');
   } catch (error) {
     console.error('Error during database seeding:', error);
   }

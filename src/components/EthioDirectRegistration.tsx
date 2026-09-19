@@ -8,6 +8,7 @@ import { User as UserType } from '../types/index.ts';
 import { signUpWithSupabase } from '../lib/supabase.ts';
 import { useNavigate } from 'react-router-dom';
 import { getRoleDashboardPath } from '../context/AuthContext.tsx';
+import { AgriLinkLogo } from './AgriLinkLogo.tsx';
 interface Props {
   onNavigate?: (tab: string) => void;
   onRegisteredSuccess?: (user: UserType) => void;
@@ -32,7 +33,7 @@ const BUYER_TYPES = ['INDIVIDUAL', 'SUPERMARKET', 'RESTAURANT', 'HOTEL', 'PROCES
 export default function EthioDirectRegistration({ onNavigate, onRegisteredSuccess, onOpenLogin }: Props) {
   const navigate = useNavigate();
   const [step, setStep]     = useState(1);
-  const [role, setRole]     = useState<'producer' | 'buyer' | 'logistics' | null>(null);
+  const [role, setRole]     = useState<'producer' | 'buyer' | 'logistics' | 'supplier' | 'finance' | null>(null);
   const [showPw, setShowPw] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError]   = useState<string | null>(null);
@@ -47,6 +48,8 @@ export default function EthioDirectRegistration({ onNavigate, onRegisteredSucces
     bankName: 'Commercial Bank of Ethiopia (CBE)', bankAccount: '',
     companyName: '', tinNumber: '', deliveryAddress: '', buyerType: 'INDIVIDUAL',
     vehicleType: 'Isuzu NPR (3.5 Tonnes)', licensePlate: '', licenseNumber: '',
+    supplierCompanyName: '', inputCategories: 'Certified Hybrid Seeds, Fertilizers', supplierLicense: '',
+    financeInstitutionName: 'Commercial Bank of Ethiopia (CBE)', financeLicense: '', creditProducts: 'Working Capital, Micro-Harvest Loans',
   });
 
   const u = (k: string, v: string) => setF(p => ({ ...p, [k]: v }));
@@ -82,13 +85,19 @@ export default function EthioDirectRegistration({ onNavigate, onRegisteredSucces
     setIsSubmitting(true);
     try {
       const roleMap: Record<string, string> = {
-        producer: 'FARMER', buyer: 'BUSINESS_BUYER', logistics: 'DRIVER',
+        producer: 'FARMER',
+        buyer: 'BUSINESS_BUYER',
+        logistics: 'DRIVER',
+        supplier: 'INPUT_SUPPLIER',
+        finance: 'FINANCIAL_INSTITUTION',
       };
       const mappedRole  = roleMap[role!] || 'FARMER';
       const cleanPhone  = f.phone.startsWith('+251') ? f.phone : `+251${f.phone.replace(/^0/, '')}`;
       const cleanEmail  = f.email.trim().toLowerCase();
       const orgName     = role === 'buyer'    ? f.companyName
                         : role === 'producer' ? (f.farmName || `${f.fullName} Farm`)
+                        : role === 'supplier' ? (f.supplierCompanyName || `${f.fullName} Agro-Inputs`)
+                        : role === 'finance'  ? (f.financeInstitutionName || `${f.fullName} Credit Desk`)
                         : `${f.fullName} Transport`;
       const crops       = f.primaryCrops
         ? f.primaryCrops.split(',').map((s: string) => s.trim()).filter(Boolean)
@@ -233,13 +242,7 @@ export default function EthioDirectRegistration({ onNavigate, onRegisteredSucces
         </div>
         <div className="relative z-10 space-y-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center font-black text-xl shadow-lg">E</div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight leading-none">EthioDirect</h1>
-                <span className="text-[10px] text-emerald-300 font-semibold uppercase tracking-widest">National Agri Ecosystem</span>
-              </div>
-            </div>
+            <AgriLinkLogo size="md" theme="dark" subtext="National Agri Ecosystem" />
             {onNavigate && (
               <button onClick={() => onNavigate('home')}
                 className="text-xs text-emerald-300 hover:text-white flex items-center gap-1 bg-emerald-900/60 px-3 py-1.5 rounded-lg border border-emerald-800 transition cursor-pointer">
@@ -312,9 +315,11 @@ export default function EthioDirectRegistration({ onNavigate, onRegisteredSucces
               <p className="text-slate-500 text-sm mb-6">Select your account type to get started.</p>
               <div className="space-y-4">
                 {([
-                  { k: 'producer', emoji: '🌾', label: 'Producer / Farmer',  desc: 'List and sell your harvest directly to verified buyers at fair prices.',         ac: 'emerald' },
-                  { k: 'buyer',    emoji: '🏢', label: 'Commercial Buyer',    desc: 'Hotel, supermarket, processor or exporter seeking graded bulk produce.',           ac: 'blue'    },
-                  { k: 'logistics',emoji: '🚚', label: 'Fleet & Logistics',   desc: 'Operate trucks or cold-chain vehicles for verified agricultural freight.',        ac: 'amber'   },
+                  { k: 'producer',  emoji: '🌾', label: 'Producer / Farmer',            desc: 'List and sell your harvest directly to verified buyers at fair prices.',         ac: 'emerald' },
+                  { k: 'buyer',     emoji: '🏢', label: 'Commercial Buyer',              desc: 'Hotel, supermarket, processor or exporter seeking graded bulk produce.',           ac: 'blue'    },
+                  { k: 'logistics', emoji: '🚚', label: 'Fleet & Logistics Operator',    desc: 'Operate trucks or cold-chain vehicles for verified agricultural freight.',        ac: 'amber'   },
+                  { k: 'supplier',  emoji: '🧪', label: 'Agro-Input & Seed Supplier',    desc: 'Distribute certified seeds, fertilizers, and modern farming equipment.',          ac: 'teal'    },
+                  { k: 'finance',   emoji: '🏛️', label: 'Financial Institution / Bank',  desc: 'Provide agricultural credit, loan underwriting, and escrow services.',            ac: 'purple'  },
                 ] as const).map(opt => (
                   <label key={opt.k} onClick={() => setRole(opt.k)}
                     className={`block cursor-pointer p-5 rounded-2xl border-2 transition-all ${
@@ -422,7 +427,15 @@ export default function EthioDirectRegistration({ onNavigate, onRegisteredSucces
           {step === 3 && (
             <form autoComplete="off" onSubmit={handleSubmit} className="animate-in fade-in slide-in-from-right-8 duration-500">
               <h3 className="text-2xl font-extrabold text-slate-900 mb-1">
-                {role === 'producer' ? 'Farm & KYC Details' : role === 'buyer' ? 'Business Details' : 'Fleet Registration'}
+                {role === 'producer'
+                  ? 'Farm & KYC Details'
+                  : role === 'buyer'
+                  ? 'Business Details'
+                  : role === 'logistics'
+                  ? 'Fleet Registration'
+                  : role === 'supplier'
+                  ? 'Agro-Input Supplier KYC'
+                  : 'Financial Institution Credentials'}
               </h3>
               <p className="text-slate-500 text-sm mb-6">Required for verification and database registration.</p>
               <div className="space-y-4">
@@ -554,6 +567,79 @@ export default function EthioDirectRegistration({ onNavigate, onRegisteredSucces
                     </div>
                   </>
                 )}
+
+                {/* AGRO-INPUT SUPPLIER */}
+                {role === 'supplier' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={lbl}>Supplier / Store Name *</label>
+                        <input value={f.supplierCompanyName} onChange={e => u('supplierCompanyName', e.target.value)}
+                          placeholder="e.g. Oromia Agri-Inputs Ltd." className={inp('teal')} />
+                      </div>
+                      <div>
+                        <label className={lbl}>MoA / Trade License *</label>
+                        <input value={f.supplierLicense} onChange={e => u('supplierLicense', e.target.value)}
+                          placeholder="e.g. MOA-INP-88231" className={inp('teal')} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={lbl}>Input Categories Supplied</label>
+                      <input value={f.inputCategories} onChange={e => u('inputCategories', e.target.value)}
+                        placeholder="e.g. Certified Seeds, Fertilizers, Solar Pumps" className={inp('teal')} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={lbl}>Warehouse Region *</label>
+                        <select value={f.region} onChange={e => u('region', e.target.value)} className={inp('teal')}>
+                          {REGIONS.map(r => <option key={r}>{r}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={lbl}>Warehouse / Depot City</label>
+                        <input value={f.woreda} onChange={e => u('woreda', e.target.value)}
+                          placeholder="e.g. Adama Logistics Depot" className={inp('teal')} />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* FINANCIAL INSTITUTION */}
+                {role === 'finance' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={lbl}>Institution Name *</label>
+                        <select value={f.financeInstitutionName} onChange={e => u('financeInstitutionName', e.target.value)} className={inp('purple')}>
+                          {BANKS.map(b => <option key={b}>{b}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={lbl}>NBE Banking License No. *</label>
+                        <input value={f.financeLicense} onChange={e => u('financeLicense', e.target.value)}
+                          placeholder="e.g. NBE-AGR-0941" className={inp('purple')} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={lbl}>Credit Product Portfolio</label>
+                      <input value={f.creditProducts} onChange={e => u('creditProducts', e.target.value)}
+                        placeholder="e.g. Harvest Advance, Input Loans, Working Capital" className={inp('purple')} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={lbl}>Headquarters / Hub Region</label>
+                        <select value={f.region} onChange={e => u('region', e.target.value)} className={inp('purple')}>
+                          {REGIONS.map(r => <option key={r}>{r}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={lbl}>Branch Office / Desk</label>
+                        <input value={f.woreda} onChange={e => u('woreda', e.target.value)}
+                          placeholder="e.g. Addis Agri-Finance Desk" className={inp('purple')} />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex gap-4 mt-8">
@@ -562,7 +648,9 @@ export default function EthioDirectRegistration({ onNavigate, onRegisteredSucces
                   className={`w-2/3 text-white font-bold py-4 rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 ${
                     role === 'producer' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'
                     : role === 'buyer'  ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'
-                    : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30'
+                    : role === 'logistics' ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30'
+                    : role === 'supplier' ? 'bg-teal-600 hover:bg-teal-700 shadow-teal-600/30'
+                    : 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/30'
                   }`}>
                   {isSubmitting
                     ? <><span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Registering...</>
@@ -586,7 +674,13 @@ export default function EthioDirectRegistration({ onNavigate, onRegisteredSucces
                 <div className="flex justify-between">
                   <span className="text-slate-500">Role:</span>
                   <span className="font-bold text-slate-900 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                    {doneUser.role || (role === 'producer' ? 'FARMER' : role === 'buyer' ? 'BUSINESS_BUYER' : 'DRIVER')}
+                    {doneUser.role || (
+                      role === 'producer' ? 'FARMER'
+                      : role === 'buyer' ? 'BUSINESS_BUYER'
+                      : role === 'supplier' ? 'INPUT_SUPPLIER'
+                      : role === 'finance' ? 'FINANCIAL_INSTITUTION'
+                      : 'DRIVER'
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between"><span className="text-slate-500">Email:</span><span className="font-semibold text-slate-900">{f.email}</span></div>
@@ -602,7 +696,13 @@ export default function EthioDirectRegistration({ onNavigate, onRegisteredSucces
               <button
                 onClick={() => {
                   if (onRegisteredSuccess) onRegisteredSuccess(doneUser);
-                  const targetRole = doneUser.role || (role === 'producer' ? 'FARMER' : role === 'buyer' ? 'BUSINESS_BUYER' : 'DRIVER');
+                  const targetRole = doneUser.role || (
+                    role === 'producer' ? 'FARMER'
+                    : role === 'buyer' ? 'BUSINESS_BUYER'
+                    : role === 'supplier' ? 'INPUT_SUPPLIER'
+                    : role === 'finance' ? 'FINANCIAL_INSTITUTION'
+                    : 'DRIVER'
+                  );
                   navigate(getRoleDashboardPath(targetRole));
                 }}
                 className="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm cursor-pointer shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2">

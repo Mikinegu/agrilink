@@ -620,6 +620,29 @@ export interface TranslationDictionary {
     colActions: string;
     releaseEscrowBtn: string;
     customerFallback: string;
+    // Autonomous AI Escrow & Admin Presence Controller
+    adminPresenceTitle: string;
+    humanAdminActive: string;
+    humanAdminDesc: string;
+    aiAutoPilotActive: string;
+    aiAutoPilotDesc: string;
+    stepAwayHandoverBtn: string;
+    resumeHumanControlBtn: string;
+    passPaymentBtn: string;
+    rejectPaymentBtn: string;
+    passedByAiBadge: string;
+    passedByAdminBadge: string;
+    flaggedByAiBadge: string;
+    aiAuditLogTitle: string;
+    aiAuditLogSubtitle: string;
+    aiAuditLogEmpty: string;
+    rejectModalTitle: string;
+    rejectModalSubtitle: string;
+    rejectReasonPrompt: string;
+    rejectPresetInvalidRef: string;
+    rejectPresetAmountMismatch: string;
+    rejectPresetDuplicate: string;
+    confirmRejectBtn: string;
     // Produce & Crops tab
     produceCatalogTitle: string;
     produceCatalogSubtitle: string;

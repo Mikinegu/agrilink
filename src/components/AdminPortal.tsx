@@ -42,6 +42,9 @@ import {
   Snowflake,
   Bot,
   Radio,
+  History,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { User, Order, Payment, Product } from '../types/index.ts';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
@@ -1227,6 +1230,114 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           </div>
 
+          {/* Admin Presence & Autonomous AI Escrow Controller Bar */}
+          <div className={`p-5 rounded-2xl border transition-all duration-300 ${
+            aiControllerStatus?.isAiInControl
+              ? 'bg-gradient-to-r from-indigo-950 via-purple-950 to-zinc-900 border-indigo-500/50 shadow-lg shadow-indigo-950/30'
+              : 'bg-gradient-to-r from-emerald-950 via-zinc-900 to-teal-950 border-emerald-500/40 shadow-lg shadow-emerald-950/20'
+          } text-white`}>
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className={`p-3 rounded-xl ${
+                  aiControllerStatus?.isAiInControl
+                    ? 'bg-indigo-500/20 border border-indigo-400/40 text-indigo-300'
+                    : 'bg-emerald-500/20 border border-emerald-400/40 text-emerald-300'
+                }`}>
+                  {aiControllerStatus?.isAiInControl ? (
+                    <Bot className="h-6 w-6 animate-pulse" />
+                  ) : (
+                    <UserCheck className="h-6 w-6" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase border ${
+                      aiControllerStatus?.isAiInControl
+                        ? 'bg-indigo-500/30 border-indigo-400 text-indigo-200'
+                        : 'bg-emerald-500/30 border-emerald-400 text-emerald-200'
+                    }`}>
+                      {aiControllerStatus?.isAiInControl ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-ping" />
+                          AI Auto-Pilot Active
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                          Human Control
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-xs font-mono text-zinc-400">
+                      {aiControllerStatus?.isAiInControl ? 'Admin Away' : 'Admin Present'}
+                    </span>
+                  </div>
+                  <h4 className="text-base font-black mt-1">
+                    {aiControllerStatus?.isAiInControl
+                      ? t.adminPortal.aiAutoPilotActive
+                      : t.adminPortal.humanAdminActive}
+                  </h4>
+                  <p className="text-xs text-zinc-300 mt-0.5 max-w-xl">
+                    {aiControllerStatus?.isAiInControl
+                      ? t.adminPortal.aiAutoPilotDesc
+                      : t.adminPortal.humanAdminDesc}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {/* AI Stats Badges */}
+                <div className="flex gap-2 text-xs">
+                  <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
+                    <span className="text-[10px] text-zinc-300 block uppercase font-bold">AI Passed</span>
+                    <span className="text-sm font-black text-indigo-300">
+                      {aiControllerStatus?.aiStats?.passedCount || 0}
+                    </span>
+                  </div>
+                  <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
+                    <span className="text-[10px] text-zinc-300 block uppercase font-bold">Suspicious</span>
+                    <span className="text-sm font-black text-rose-300">
+                      {aiControllerStatus?.aiStats?.flaggedCount || 0}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mode Switch Toggle Button */}
+                <button
+                  onClick={() => handleTogglePresence(aiControllerStatus?.isAiInControl ? 'HUMAN_CONTROL' : 'AI_AUTOPILOT')}
+                  disabled={presenceUpdating}
+                  className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all flex items-center gap-2 shadow-md ${
+                    aiControllerStatus?.isAiInControl
+                      ? 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950 shadow-emerald-500/20'
+                      : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
+                  } disabled:opacity-50`}
+                >
+                  {aiControllerStatus?.isAiInControl ? (
+                    <>
+                      <UserCheck className="h-4 w-4" />
+                      {t.adminPortal.resumeHumanControlBtn}
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="h-4 w-4" />
+                      {t.adminPortal.stepAwayHandoverBtn}
+                    </>
+                  )}
+                </button>
+
+                {/* Audit Trail Drawer Toggle */}
+                <button
+                  onClick={() => setShowAiAuditDrawer(!showAiAuditDrawer)}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white cursor-pointer transition-colors flex items-center gap-1.5"
+                >
+                  <History className="h-4 w-4" />
+                  <span>Audit Trail</span>
+                  {showAiAuditDrawer ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Payments Table */}
           <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-2xs">
             <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
@@ -1276,19 +1387,72 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </span>
                       </td>
                       <td className="p-4">
-                        {getPaymentStatusBadge(p.status)}
+                        {getPaymentStatusBadge(p.status, p.paymentDetails || p)}
                       </td>
                       <td className="p-4 text-zinc-500 font-mono text-[11px]">
                         {new Date(p.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="p-4 text-right">
+                        {(p.status === 'PENDING' || p.status === 'PROCESSING' || p.status === 'PENDING_APPROVAL' || p.status === 'FLAGGED_SUSPICIOUS') && (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handlePassPayment(p.id)}
+                              disabled={actionInProgressId === p.id}
+                              className="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer flex items-center gap-1 shadow-2xs transition-colors disabled:opacity-50"
+                              title="Manually verify and accept this payment"
+                            >
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>{t.adminPortal.passPaymentBtn}</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRejectModalPayment(p);
+                                setRejectReason('');
+                              }}
+                              disabled={actionInProgressId === p.id}
+                              className="px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[11px] cursor-pointer flex items-center gap-1 transition-colors disabled:opacity-50"
+                              title="Reject payment reference"
+                            >
+                              <X className="h-3 w-3" />
+                              <span>{t.adminPortal.rejectPaymentBtn}</span>
+                            </button>
+                          </div>
+                        )}
+
                         {p.status === 'PAID' && (
-                          <button
-                            onClick={() => handleUpdatePaymentStatus(p.orderId, 'RELEASED_TO_FARMER')}
-                            className="px-2.5 py-1 rounded-md bg-teal-50 hover:bg-teal-100 text-teal-900 font-bold text-[10px] cursor-pointer"
+                          <div className="flex items-center justify-end gap-2">
+                            {p.paymentDetails?.passedBy === 'AI_ASSISTANT' && (
+                              <span
+                                onClick={() => setSelectedAuditLog(p)}
+                                className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 cursor-pointer hover:bg-indigo-100 flex items-center gap-1"
+                                title="Click to view AI reasoning"
+                              >
+                                <Bot className="h-3 w-3 text-indigo-600" />
+                                {t.adminPortal.passedByAiBadge}
+                              </span>
+                            )}
+                            {p.paymentDetails?.passedBy === 'HUMAN_ADMIN' && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                <UserCheck className="h-3 w-3 text-emerald-600" />
+                                {t.adminPortal.passedByAdminBadge}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handleUpdatePaymentStatus(p.orderId, 'RELEASED_TO_FARMER')}
+                              className="px-2.5 py-1 rounded-md bg-teal-50 hover:bg-teal-100 text-teal-900 font-bold text-[10px] cursor-pointer"
+                            >
+                              {t.adminPortal.releaseEscrowBtn}
+                            </button>
+                          </div>
+                        )}
+
+                        {p.status === 'REJECTED' && (
+                          <span
+                            className="text-[11px] font-bold text-rose-600 cursor-pointer hover:underline"
+                            title={p.paymentDetails?.rejectionReason}
                           >
-                            {t.adminPortal.releaseEscrowBtn}
-                          </button>
+                            {p.paymentDetails?.rejectionReason ? `❌ ${p.paymentDetails.rejectionReason.slice(0, 24)}...` : '❌ Rejected'}
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -1296,6 +1460,113 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* AI Escrow Assistant Autonomous Activity Stream & Audit Trail */}
+          <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-2xs">
+            <div
+              className="p-4 border-b border-zinc-200 flex items-center justify-between cursor-pointer hover:bg-zinc-50 transition-colors"
+              onClick={() => setShowAiAuditDrawer(!showAiAuditDrawer)}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-zinc-900 flex items-center gap-2">
+                    <span>{t.adminPortal.aiAuditLogTitle}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-800">
+                      {aiControllerStatus?.recentLogs?.length || 0} entries
+                    </span>
+                  </h3>
+                  <p className="text-xs text-zinc-500">{t.adminPortal.aiAuditLogSubtitle}</p>
+                </div>
+              </div>
+              <button className="text-zinc-400 hover:text-zinc-600 p-1">
+                {showAiAuditDrawer ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+            </div>
+
+            {showAiAuditDrawer && (
+              <div className="p-4">
+                {aiControllerStatus?.recentLogs && aiControllerStatus.recentLogs.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 uppercase font-bold text-[10px]">
+                        <tr>
+                          <th className="p-3">Time</th>
+                          <th className="p-3">Actor</th>
+                          <th className="p-3">Decision</th>
+                          <th className="p-3">Order / TxRef</th>
+                          <th className="p-3">Amount</th>
+                          <th className="p-3">Fraud Risk</th>
+                          <th className="p-3">Audit Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {aiControllerStatus.recentLogs.map((log: any) => (
+                          <tr
+                            key={log.id}
+                            className="hover:bg-zinc-50 cursor-pointer"
+                            onClick={() => setSelectedAuditLog(log)}
+                          >
+                            <td className="p-3 font-mono text-[11px] text-zinc-500 whitespace-nowrap">
+                              {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </td>
+                            <td className="p-3 whitespace-nowrap">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                log.actor?.includes('AI')
+                                  ? 'bg-indigo-100 text-indigo-900 border border-indigo-200'
+                                  : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                              }`}>
+                                {log.actor?.includes('AI') ? <Bot className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
+                                {log.actor}
+                              </span>
+                            </td>
+                            <td className="p-3 whitespace-nowrap">
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                                log.decision === 'AI_PASSED' || log.decision === 'ADMIN_PASSED'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : log.decision === 'FLAGGED_SUSPICIOUS'
+                                  ? 'bg-amber-100 text-amber-900'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {log.decision}
+                              </span>
+                            </td>
+                            <td className="p-3 font-mono text-[11px]">
+                              <span className="font-bold text-zinc-900">{log.orderNumber || `ORD-${log.orderId}`}</span>
+                              <span className="text-zinc-400 block text-[10px]">{log.transactionRef}</span>
+                            </td>
+                            <td className="p-3 font-bold text-zinc-900 whitespace-nowrap">
+                              {(log.amountEtb || 0).toLocaleString()} {t.common.currency}
+                            </td>
+                            <td className="p-3 font-mono text-[11px]">
+                              <span className={`font-bold ${
+                                (log.fraudRiskScore || 0) > 0.4 ? 'text-rose-600' : 'text-emerald-600'
+                              }`}>
+                                {((log.fraudRiskScore || 0) * 100).toFixed(0)}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-zinc-600 max-w-md truncate" title={log.reason}>
+                              {log.reason}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-zinc-500 text-xs">
+                    <Bot className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
+                    <p className="font-bold text-zinc-700">{t.adminPortal.aiAuditLogEmpty}</p>
+                    <p className="text-zinc-400 mt-0.5 text-[11px]">
+                      When the admin steps away, all incoming transaction references are audited here with full reasoning.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1711,6 +1982,166 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 className="px-4 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-zinc-700 text-xs font-bold cursor-pointer"
               >
                 {t.adminPortal.closeBtn}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* REJECT PAYMENT MODAL */}
+      {/* ========================================================================= */}
+      {rejectModalPayment && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-rose-200 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3 mb-4">
+              <div className="flex items-center gap-2 text-rose-700">
+                <AlertCircle className="h-5 w-5" />
+                <h3 className="font-black text-sm">{t.adminPortal.rejectModalTitle}</h3>
+              </div>
+              <button
+                onClick={() => { setRejectModalPayment(null); setRejectReason(''); }}
+                className="text-zinc-400 hover:text-zinc-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-500 mb-4">{t.adminPortal.rejectModalSubtitle}</p>
+
+            <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-200 text-xs mb-4 space-y-1">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Order:</span>
+                <span className="font-bold text-zinc-800">#{rejectModalPayment.orderNumber || rejectModalPayment.orderId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Amount:</span>
+                <span className="font-black text-emerald-800">{rejectModalPayment.amountEtb?.toLocaleString()} {t.common.currency}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Tx Reference:</span>
+                <span className="font-mono font-bold text-zinc-900">{rejectModalPayment.transactionRef}</span>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-xs font-bold text-zinc-700 block mb-2">{t.adminPortal.rejectReasonPrompt}</label>
+              <div className="flex flex-wrap gap-1.5 mb-2.5">
+                {[
+                  t.adminPortal.rejectPresetInvalidRef,
+                  t.adminPortal.rejectPresetAmountMismatch,
+                  t.adminPortal.rejectPresetDuplicate,
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setRejectReason(preset)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 cursor-pointer transition-colors"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter detailed reason for rejection..."
+                rows={3}
+                className="w-full text-xs p-3 rounded-xl border border-zinc-300 focus:outline-hidden focus:border-rose-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setRejectModalPayment(null); setRejectReason(''); }}
+                className="px-4 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-zinc-700 text-xs font-bold cursor-pointer"
+              >
+                {t.adminPortal.closeBtn || 'Cancel'}
+              </button>
+              <button
+                onClick={handleRejectPayment}
+                disabled={actionInProgressId === rejectModalPayment.id}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black cursor-pointer shadow-md disabled:opacity-50"
+              >
+                {t.adminPortal.confirmRejectBtn}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* AI AUDIT LOG INSPECTOR MODAL */}
+      {/* ========================================================================= */}
+      {selectedAuditLog && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-indigo-200 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3 mb-4">
+              <div className="flex items-center gap-2 text-indigo-700">
+                <Bot className="h-5 w-5" />
+                <h3 className="font-black text-sm">AI Escrow Audit Verification</h3>
+              </div>
+              <button
+                onClick={() => setSelectedAuditLog(null)}
+                className="text-zinc-400 hover:text-zinc-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-100 space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-indigo-900 font-bold">Decision:</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-200 text-indigo-900">
+                    {selectedAuditLog.decision || selectedAuditLog.status}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-600">Actor:</span>
+                  <span className="font-bold text-zinc-900">{selectedAuditLog.actor || 'AI Escrow Assistant'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-600">Timestamp:</span>
+                  <span className="font-mono text-zinc-800">{new Date(selectedAuditLog.timestamp || selectedAuditLog.createdAt || Date.now()).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="bg-zinc-50 p-3.5 rounded-xl border border-zinc-200 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Transaction Ref:</span>
+                  <span className="font-mono font-bold text-zinc-900">{selectedAuditLog.transactionRef}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Order Reference:</span>
+                  <span className="font-mono text-zinc-800">{selectedAuditLog.orderNumber || `ORD-${selectedAuditLog.orderId}`}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Amount:</span>
+                  <span className="font-black text-emerald-800">{(selectedAuditLog.amountEtb || 0).toLocaleString()} {t.common.currency}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Fraud Risk Score:</span>
+                  <span className="font-mono font-bold text-emerald-700">
+                    {((selectedAuditLog.fraudRiskScore || 0) * 100).toFixed(0)}% (Passed Safety Threshold)
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-zinc-700 block mb-1">Reasoning & AI Verification Rule:</label>
+                <div className="p-3 bg-zinc-100 rounded-xl text-zinc-800 text-[11px] leading-relaxed border border-zinc-200">
+                  {selectedAuditLog.reason || selectedAuditLog.aiReason || selectedAuditLog.paymentDetails?.adminNotes || 'Autonomously evaluated against CBE Birr / Telebirr confirmation rules.'}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={() => setSelectedAuditLog(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold cursor-pointer"
+              >
+                {t.adminPortal.closeBtn || 'Close'}
               </button>
             </div>
           </div>

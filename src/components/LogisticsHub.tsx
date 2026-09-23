@@ -250,7 +250,7 @@ export const LogisticsHub: React.FC<LogisticsHubProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
-                    {job.waypoints.map((wp, idx) => (
+                    {(job.waypoints || []).map((wp, idx) => (
                       <div
                         key={idx}
                         className={`p-2 rounded-xl text-xs flex items-center gap-2 ${

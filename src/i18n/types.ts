@@ -324,6 +324,10 @@ export interface TranslationDictionary {
     reeferFleet: string;
     adminExecutive: string;
     platformGovernance: string;
+    inputSupplierTitle: string;
+    inputSupplierDesc: string;
+    bankFinanceTitle: string;
+    bankFinanceDesc: string;
     phoneOrEmailLabel: string;
     phonePlaceholder: string;
     phoneFormatHint: string;

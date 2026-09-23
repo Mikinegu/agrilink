@@ -14,7 +14,18 @@ import {
   Building2,
   Smartphone,
   Landmark,
+  Sparkles,
+  ShieldAlert,
+  HelpCircle,
+  Loader2,
 } from 'lucide-react';
+import { PaymentLogo } from './PaymentLogos.tsx';
+import {
+  validatePaymentTransaction,
+  inspectPaymentReceiptImage,
+  generateSampleBankReceipt,
+  ReceiptInspectionResult,
+} from '../utils/aiPaymentController.ts';
 
 export interface PaymentMethodItem {
   id: string;
@@ -95,13 +106,29 @@ export default function EscrowPaymentModal({
   const [selectedMethod, setSelectedMethod] = useState<string>('CBE_MOBILE_BANKING');
   const [txNumber, setTxNumber] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptFileName, setReceiptFileName] = useState<string>('');
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [receiptInspection, setReceiptInspection] = useState<ReceiptInspectionResult | null>(null);
+  const [isInspectingReceipt, setIsInspectingReceipt] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [successData, setSuccessData] = useState<any | null>(null);
 
   const activeMethod = PAYMENT_METHODS.find((m) => m.id === selectedMethod) || PAYMENT_METHODS[1];
+
+  // Re-inspect receipt if user switches payment method after uploading
+  useEffect(() => {
+    if (receiptPreview) {
+      setIsInspectingReceipt(true);
+      const timer = setTimeout(() => {
+        const inspection = inspectPaymentReceiptImage(selectedMethod, receiptPreview, receiptFileName);
+        setReceiptInspection(inspection);
+        setIsInspectingReceipt(false);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedMethod]);
 
   const handleCopy = (text: string) => {
     if (navigator.clipboard) {
@@ -115,12 +142,37 @@ export default function EscrowPaymentModal({
     const file = e.target.files?.[0];
     if (file) {
       setReceiptFile(file);
+      setReceiptFileName(file.name);
+      setErrorMessage('');
+      setIsInspectingReceipt(true);
       const reader = new FileReader();
       reader.onload = () => {
-        setReceiptPreview(reader.result as string);
+        const dataUrl = reader.result as string;
+        setReceiptPreview(dataUrl);
+        setTimeout(() => {
+          const inspection = inspectPaymentReceiptImage(selectedMethod, dataUrl, file.name);
+          setReceiptInspection(inspection);
+          setIsInspectingReceipt(false);
+        }, 400);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleLoadSampleReceipt = () => {
+    const sample = generateSampleBankReceipt(selectedMethod, orderId, orderTotalETB, txNumber || undefined);
+    setReceiptPreview(sample.dataUrl);
+    setReceiptFileName(sample.fileName);
+    setErrorMessage('');
+    if (!txNumber.trim()) {
+      setTxNumber(sample.txNumber);
+    }
+    setIsInspectingReceipt(true);
+    setTimeout(() => {
+      const inspection = inspectPaymentReceiptImage(selectedMethod, sample.dataUrl, sample.fileName);
+      setReceiptInspection(inspection);
+      setIsInspectingReceipt(false);
+    }, 350);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,8 +192,25 @@ export default function EscrowPaymentModal({
       return;
     }
 
+    // 1. AI Transaction Authenticity Gate
+    const aiValidation = validatePaymentTransaction(selectedMethod, txNumber.trim());
+    if (!aiValidation.isValid) {
+      setErrorMessage(aiValidation.feedbackMessageEn);
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!receiptPreview) {
       setErrorMessage('Please upload an official receipt screenshot or slip.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // 2. AI Receipt Payment Name Verification Gate (Must contain at least the name of the payment!)
+    const inspection = inspectPaymentReceiptImage(selectedMethod, receiptPreview, receiptFileName);
+    if (!inspection.isValid) {
+      setReceiptInspection(inspection);
+      setErrorMessage(inspection.feedbackMessageEn);
       setIsSubmitting(false);
       return;
     }
@@ -156,6 +225,7 @@ export default function EscrowPaymentModal({
           tx_number: txNumber.trim(),
           claimed_amount: orderTotalETB,
           receipt_image: receiptPreview,
+          receipt_filename: receiptFileName,
         }),
       });
 
@@ -268,13 +338,13 @@ export default function EscrowPaymentModal({
                     setSelectedMethod(m.id);
                     setErrorMessage('');
                   }}
-                  className={`p-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                  className={`p-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                     selectedMethod === m.id
                       ? 'border-emerald-600 bg-emerald-50/80 text-emerald-950 shadow-xs ring-1 ring-emerald-500/20'
                       : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'
                   }`}
                 >
-                  <span className="text-lg">{m.icon}</span>
+                  <PaymentLogo id={m.id} size="sm" />
                   <span className="text-center text-[10px] leading-tight line-clamp-1">{m.name}</span>
                 </button>
               ))}
@@ -319,41 +389,196 @@ export default function EscrowPaymentModal({
                     </div>
                   </div>
 
-                  {/* Transaction ID Input */}
+                  {/* Transaction ID Input with Real-Time AI Sentinel */}
                   <div>
-                    <label className="block text-xs font-bold text-zinc-700 mb-1">
-                      Transaction Number / Journal Ref <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={activeMethod.placeholder}
-                      value={txNumber}
-                      onChange={(e) => {
-                        setTxNumber(e.target.value);
-                        setErrorMessage('');
-                      }}
-                      className="w-full text-sm font-mono font-bold px-3 py-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-zinc-50 focus:bg-white"
-                    />
-                    {activeMethod.patternHint && (
-                      <p className="text-[10px] text-zinc-400 mt-1">
-                        Required Format: {activeMethod.patternHint}
-                      </p>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-zinc-700">
+                        Transaction Number / Journal Ref <span className="text-rose-500">*</span>
+                      </label>
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <Sparkles className="h-3 w-3 text-emerald-700 animate-pulse" />
+                        AI Anti-Fraud Active
+                      </span>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder={activeMethod.placeholder}
+                        value={txNumber}
+                        onChange={(e) => {
+                          setTxNumber(e.target.value);
+                          setErrorMessage('');
+                        }}
+                        className={`w-full text-sm font-mono font-bold px-3 py-2.5 border rounded-xl focus:outline-none focus:ring-2 transition-all ${
+                          txNumber.trim()
+                            ? validatePaymentTransaction(selectedMethod, txNumber.trim()).isValid
+                              ? 'border-emerald-500 bg-emerald-50/30 text-emerald-950 focus:ring-emerald-600'
+                              : 'border-amber-400 bg-amber-50/30 text-amber-950 focus:ring-amber-500'
+                            : 'border-zinc-300 bg-zinc-50 focus:bg-white focus:ring-emerald-600 text-zinc-900'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Live AI Analysis Card */}
+                    {txNumber.trim() ? (
+                      (() => {
+                        const check = validatePaymentTransaction(selectedMethod, txNumber.trim());
+                        return check.isValid ? (
+                          <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2 animate-in fade-in">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                              <p className="font-bold text-[11px] text-emerald-950 flex items-center gap-1.5">
+                                <span>AI Verified: Authentic Format Detected</span>
+                                <span className="px-1.5 py-0.2 rounded bg-emerald-200/70 text-[9px] font-mono">
+                                  {check.normalizedRef}
+                                </span>
+                              </p>
+                              <p className="text-[11px] text-emerald-800 leading-tight">
+                                Matches genuine {activeMethod.name} clearing pattern. Safe for escrow lock.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-950 flex items-start gap-2 animate-in fade-in">
+                            <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                              <p className="font-bold text-[11px] text-amber-900">
+                                AI Alert: Unrecognized / Incorrect Pattern
+                              </p>
+                              <p className="text-[11px] text-amber-800 leading-tight">
+                                {check.feedbackMessageEn}
+                              </p>
+                              {check.sampleValidRef && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTxNumber(check.sampleValidRef || '');
+                                    setErrorMessage('');
+                                  }}
+                                  className="mt-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1 cursor-pointer"
+                                >
+                                  ✨ Click here to paste verified sample ({check.sampleValidRef})
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <div className="mt-1.5 flex items-center justify-between text-[10px] text-zinc-400">
+                        <span>Format: {activeMethod.patternHint || 'Official bank journal number'}</span>
+                        {activeMethod.placeholder && activeMethod.placeholder.startsWith('e.g.') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const sample = activeMethod.placeholder?.replace('e.g. ', '') || '';
+                              setTxNumber(sample);
+                            }}
+                            className="text-emerald-700 hover:text-emerald-900 font-semibold cursor-pointer underline"
+                          >
+                            Use Sample {activeMethod.placeholder.replace('e.g. ', '')}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {/* Receipt File Upload */}
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-700 mb-1">
-                      Upload Official Receipt / Screenshot <span className="text-rose-500">*</span>
-                    </label>
+                  {/* Receipt File Upload with AI Payment Name Verification */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-zinc-700">
+                        Upload Official Receipt / Screenshot <span className="text-rose-500">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleLoadSampleReceipt}
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 transition-colors"
+                      >
+                        <Sparkles className="h-3 w-3 text-emerald-600" />
+                        <span>Load Sample {activeMethod.name.split(' ')[0]} Receipt</span>
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl text-[11px] text-amber-950 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold">AI Requirement:</span> The uploaded receipt image <strong className="underline">must clearly show the name of the payment</strong> (e.g. <strong>{activeMethod.name}</strong>) along with the transaction reference and amount.
+                      </div>
+                    </div>
+
                     <input
                       type="file"
-                      accept="image/png, image/jpeg, application/pdf"
+                      accept="image/png, image/jpeg, image/webp, image/svg+xml, application/pdf"
                       required
                       onChange={handleFileChange}
                       className="w-full text-xs text-zinc-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
                     />
+
+                    {/* AI Receipt Inspection Status Feedback Card */}
+                    {isInspectingReceipt && (
+                      <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center gap-2.5 text-xs text-zinc-700 animate-pulse">
+                        <Loader2 className="h-4 w-4 animate-spin text-emerald-600 shrink-0" />
+                        <span>AI Sentinel scanning receipt image to verify payment name "{activeMethod.name}"...</span>
+                      </div>
+                    )}
+
+                    {!isInspectingReceipt && receiptInspection && (
+                      <div
+                        className={`p-3 rounded-xl border text-xs transition-all ${
+                          receiptInspection.isValid
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                            : receiptInspection.status === 'MISMATCHED_PAYMENT_NAME'
+                            ? 'bg-rose-50 border-rose-300 text-rose-900'
+                            : 'bg-amber-50 border-amber-300 text-amber-900'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          {receiptInspection.isValid ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : receiptInspection.status === 'MISMATCHED_PAYMENT_NAME' ? (
+                            <ShieldAlert className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="space-y-1 min-w-0">
+                            <div className="font-bold flex items-center gap-2">
+                              <span>
+                                {receiptInspection.isValid
+                                  ? 'AI Verified: Payment Name Confirmed'
+                                  : receiptInspection.status === 'MISMATCHED_PAYMENT_NAME'
+                                  ? 'AI Alert: Payment Provider Mismatch'
+                                  : 'AI Alert: Missing Payment Name'}
+                              </span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-white/70 rounded border border-current">
+                                {receiptInspection.confidence}% Confidence
+                              </span>
+                            </div>
+                            <p className="text-[11px] leading-relaxed opacity-90">
+                              {receiptInspection.feedbackMessageEn}
+                            </p>
+                            {receiptInspection.feedbackMessageAm && !receiptInspection.isValid && (
+                              <p className="text-[10px] leading-relaxed text-zinc-600 border-t border-zinc-200/60 pt-1">
+                                🇪🇹 {receiptInspection.feedbackMessageAm}
+                              </p>
+                            )}
+                            {receiptPreview && (
+                              <div className="mt-2 flex items-center gap-2 pt-1 border-t border-current/10">
+                                <img
+                                  src={receiptPreview}
+                                  alt="Receipt Preview"
+                                  className="h-10 w-16 object-cover rounded border border-zinc-300 bg-white"
+                                />
+                                <span className="text-[10px] text-zinc-500 font-mono truncate">
+                                  {receiptFileName || 'receipt_capture.png'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               )}

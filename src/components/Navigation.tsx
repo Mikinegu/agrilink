@@ -42,21 +42,21 @@ export const Navigation: React.FC<NavigationProps> = ({
   const activeProfile = PERSONA_PROFILES[currentRole];
 
   // Role perspective statistics
-  const openLotsCount = lots.filter(
+  const openLotsCount = (lots || []).filter(
     (l) => l.status === 'OPEN_FOR_BIDS' || l.status === 'BID_SUBMITTED' || l.status === 'COUNTER_OFFER_PENDING'
   ).length;
 
-  const urgentExpiryCount = lots.filter(
-    (l) => l.softRotOnsetHoursRemaining <= 24 && l.status !== 'SETTLED' && l.status !== 'DECLINED'
+  const urgentExpiryCount = (lots || []).filter(
+    (l) => (l.softRotOnsetHoursRemaining ?? 48) <= 24 && l.status !== 'SETTLED' && l.status !== 'DECLINED'
   ).length;
 
-  const activeDispatchesCount = lots.filter(
+  const activeDispatchesCount = (lots || []).filter(
     (l) => l.status === 'DISPATCHED' || l.status === 'IN_TRANSIT' || l.status === 'ARRIVED_AT_GATE'
   ).length;
 
-  const escrowLockedTotal = lots.reduce((acc, l) => {
+  const escrowLockedTotal = (lots || []).reduce((acc, l) => {
     if (l.escrowVault && l.escrowVault.escrowStatus !== 'DISBURSED') {
-      return acc + l.escrowVault.totalDepositedEtb;
+      return acc + (l.escrowVault.totalDepositedEtb || 0);
     }
     return acc;
   }, 0);

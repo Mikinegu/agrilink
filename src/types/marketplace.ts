@@ -249,6 +249,10 @@ export interface DistressedLot {
   lotWeightKg: number;
   benchmarkPricePerKg: number; // e.g. 85 ETB
   totalBenchmarkValue: number;
+  farmerDiscountPercent?: number; // e.g. 35% discount offered by farmer
+  discountedPricePerKg?: number; // e.g. 55.25 ETB/kg
+  totalDiscountedValue?: number; // e.g. 1022125 ETB
+  conditionSummary?: string; // Reason why out of prime condition & suitable for processing
   harvestDate: string;
   damageCauses: DamageCause[];
   defectPercentage: number; // 0-100%
@@ -272,7 +276,97 @@ export interface DistressedLot {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Financial & Dynamic Calculation Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+export interface VolumeDiscountTier {
+  id: string;
+  name?: string;
+  minTons: number;
+  maxTons?: number;
+  volumeLabel: string;
+  bonusDiscountPercent: number;
+  description: string;
+  badgeClass: string;
+}
+
+export const VOLUME_DISCOUNT_SCHEDULE: VolumeDiscountTier[] = [
+  {
+    id: 'tier-partial',
+    name: 'Partial Load (<5 MT)',
+    minTons: 0,
+    maxTons: 5,
+    volumeLabel: 'Partial Load (<5 MT)',
+    bonusDiscountPercent: 0,
+    description: 'Standard base discount for small trial batches and partial pickups.',
+    badgeClass: 'bg-zinc-100 text-zinc-700 border-zinc-200',
+  },
+  {
+    id: 'tier-medium',
+    name: 'Single Reefer (5–10 MT)',
+    minTons: 5,
+    maxTons: 10,
+    volumeLabel: 'Single Reefer (5–10 MT)',
+    bonusDiscountPercent: 4,
+    description: '+4% Fair Volume Discount for standard full-reefer truckload.',
+    badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+  },
+  {
+    id: 'tier-fleet',
+    name: 'Heavy Freight (10–18 MT)',
+    minTons: 10,
+    maxTons: 18,
+    volumeLabel: 'Heavy Freight (10–18 MT)',
+    bonusDiscountPercent: 7,
+    description: '+7% Fair Volume Discount for multi-vehicle industrial dispatch.',
+    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+  },
+  {
+    id: 'tier-full-lot',
+    name: 'Complete Field Clearance (Full Lot)',
+    minTons: 18,
+    volumeLabel: 'Complete Field Clearance (Full Lot)',
+    bonusDiscountPercent: 10,
+    description: '+10% Maximum Fair Discount: guarantees 100% crop rescue before soft rot.',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+  },
+];
+
+export function getVolumeDiscountTier(purchaseWeightTons: number, totalLotTons: number): VolumeDiscountTier {
+  const isFullLot = totalLotTons > 0 && purchaseWeightTons >= totalLotTons * 0.95;
+  if (isFullLot || purchaseWeightTons >= 18) {
+    return VOLUME_DISCOUNT_SCHEDULE[3];
+  }
+  if (purchaseWeightTons >= 10) {
+    return VOLUME_DISCOUNT_SCHEDULE[2];
+  }
+  if (purchaseWeightTons >= 5) {
+    return VOLUME_DISCOUNT_SCHEDULE[1];
+  }
+  return VOLUME_DISCOUNT_SCHEDULE[0];
+}
+
+export function calculateVolumeAdjustedDiscount(
+  baseDiscountPercent: number,
+  purchaseWeightTons: number,
+  totalLotTons: number
+): {
+  baseDiscount: number;
+  bonusDiscount: number;
+  volumeBonusPercent: number;
+  effectiveDiscount: number;
+  tier: VolumeDiscountTier;
+  activeTier: VolumeDiscountTier;
+} {
+  const tier = getVolumeDiscountTier(purchaseWeightTons, totalLotTons);
+  const bonusDiscount = tier.bonusDiscountPercent;
+  const effectiveDiscount = Math.min(80, baseDiscountPercent + bonusDiscount);
+  return {
+    baseDiscount: baseDiscountPercent,
+    bonusDiscount,
+    volumeBonusPercent: bonusDiscount,
+    effectiveDiscount,
+    tier,
+    activeTier: tier,
+  };
+}
 
 export interface FinancialBreakdown {
   discountPercent: number;

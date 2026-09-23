@@ -34,6 +34,9 @@ import {
   Eye,
   RefreshCw,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.tsx';
+import { useTranslation } from '../i18n/LanguageContext.tsx';
+import { matchProduceVisual } from '../utils/aiProduceImageMatcher.ts';
 import { User, Farm, FarmField, Product, FinanceApplication, TargetBuyerType, ProductCategory, ProductSubcategory } from '../types/index.ts';
 
 interface FarmerPortalProps {
@@ -96,6 +99,7 @@ export const FarmerPortal: React.FC<FarmerPortalProps> = ({
   const [newProdIngredients, setNewProdIngredients] = useState('');
   const [newProdDesc, setNewProdDesc] = useState('');
   const [newProdTargetBuyer, setNewProdTargetBuyer] = useState<TargetBuyerType>('ALL');
+  const [newProdImage, setNewProdImage] = useState<string>('https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=800&q=80');
 
   const loadFarmerData = async () => {
     setLoading(true);
@@ -208,6 +212,8 @@ export const FarmerPortal: React.FC<FarmerPortalProps> = ({
           isLiveAnimal: newProdIsLiveAnimal,
           animalBreed: newProdIsLiveAnimal ? newProdAnimalBreed : undefined,
           ingredients: newProdIngredients || undefined,
+          images: [newProdImage],
+          imageUrl: newProdImage,
         }),
       });
       if (res.ok) {
@@ -268,7 +274,13 @@ export const FarmerPortal: React.FC<FarmerPortalProps> = ({
       )}
 
       {/* Farmer Hero Banner */}
-      <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-zinc-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+      <div className="rounded-3xl p-6 sm:p-8 text-white shadow-xl mb-8 relative overflow-hidden border border-emerald-800/40 bg-zinc-950">
+        <img
+          src={farmTractorSunrise}
+          alt="Ethiopian Farmland"
+          className="absolute inset-0 w-full h-full object-cover opacity-35 object-center mix-blend-overlay"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/95 via-emerald-900/90 to-zinc-950/85" />
         <div className="absolute right-0 top-0 w-96 h-96 bg-emerald-700/20 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -806,18 +818,106 @@ export const FarmerPortal: React.FC<FarmerPortalProps> = ({
             </p>
 
             <form onSubmit={handleCreateListing} className="space-y-4">
-              {/* Product Name */}
+              {/* Product Name with AI Photo Matcher Trigger */}
               <div>
-                <label className="text-xs font-bold text-zinc-700 block mb-1">Produce / Commodity Name *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-zinc-700">Produce / Commodity Name *</label>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-emerald-600 animate-pulse" />
+                    AI Auto-Photo Matcher
+                  </span>
+                </div>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Export Magna White Teff (Ada'a Selected)"
                   value={newProdName}
-                  onChange={(e) => setNewProdName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-zinc-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewProdName(val);
+                    if (val.trim().length > 1) {
+                      const match = matchProduceVisual(val);
+                      if (match.images.length > 0) {
+                        setNewProdImage(match.images[0].url);
+                      }
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 border border-zinc-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
+
+              {/* AI Produce Vision Photo Selector Card */}
+              {(() => {
+                const query = newProdName || 'White Teff';
+                const match = matchProduceVisual(query);
+                return (
+                  <div className="p-3.5 rounded-2xl bg-zinc-900 text-white space-y-3 shadow-md border border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950 font-black text-[10px]">
+                          AI MATCHED: {match.confidenceScore}%
+                        </span>
+                        <span className="text-xs font-bold text-white line-clamp-1">{match.nameEn}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewProdName(match.nameEn);
+                          setNewProdCategory(String(match.categoryId));
+                          setNewProdVariety(match.variety);
+                          setNewProdGrade(match.defaultGrade);
+                          setNewProdPrice(String(match.benchmarkPriceEtb));
+                          setNewProdUnit(match.standardUnit);
+                          setNewProdPackaging(match.packagingType);
+                          setNewProdDesc(match.description);
+                          if (match.images.length > 0) {
+                            setNewProdImage(match.images[0].url);
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-[10px] cursor-pointer"
+                      >
+                        ✨ Auto-Fill All Specs
+                      </button>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-amber-300 font-semibold block mb-1.5">
+                        Authentic Crop Photography (Auto-Provided by AI):
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {match.images.map((img, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => setNewProdImage(img.url)}
+                            className={`relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${
+                              newProdImage === img.url
+                                ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102 shadow-sm'
+                                : 'border-zinc-700 opacity-60 hover:opacity-100'
+                            }`}
+                          >
+                            <img src={img.url} alt={img.caption} className="h-16 w-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-1">
+                              <span className="text-[8px] text-white font-medium line-clamp-1">
+                                {img.caption}
+                              </span>
+                            </div>
+                            {newProdImage === img.url && (
+                              <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-amber-400 text-zinc-950 flex items-center justify-center font-bold text-[9px]">
+                                <Check className="h-2.5 w-2.5 stroke-[3]" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800 pt-2">
+                      <span>ECX Benchmark: <strong className="text-emerald-400">{match.benchmarkPriceEtb.toLocaleString()} ETB/{match.standardUnit}</strong></span>
+                      <span>Grade: <strong className="text-zinc-200">{match.gradeLabel}</strong></span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Category & Subcategory */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

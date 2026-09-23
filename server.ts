@@ -38,6 +38,8 @@ import { seedDatabase } from './src/db/seed.ts';
 import { supabase, testSupabaseConnection, getSupabaseConfig, isSupabaseConfigured } from './src/lib/supabase.ts';
 import salvageRouter from './src/routes/salvageRoutes.ts';
 import paymentRouter from './src/routes/paymentRoutes.ts';
+import { matchProduceVisual } from './src/utils/aiProduceImageMatcher.ts';
+import { validatePaymentTransaction, inspectPaymentReceiptImage, SAMPLE_RECONCILIATION_LEDGER } from './src/utils/aiPaymentController.ts';
 
 dotenv.config();
 
@@ -46,6 +48,7 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use('/banks', express.static(path.join(process.cwd(), 'public', 'banks')));
 
 // Normalize /api prefix for Vercel serverless functions
 // IMPORTANT: Skip Vite dev server asset paths so HMR and JS/CSS assets are served correctly
@@ -1880,7 +1883,7 @@ app.post('/api/products', async (req, res) => {
     const newProd = await db
       .insert(products)
       .values({
-        farmerId: currentUserId,
+        farmerId: req.headers['x-user-id'] ? Number(req.headers['x-user-id']) : currentUserId,
         farmId: farmId ? Number(farmId) : null,
         categoryId: Number(categoryId) || 1,
         subcategoryId: subcategoryId ? Number(subcategoryId) : null,
@@ -1917,7 +1920,11 @@ app.post('/api/products', async (req, res) => {
         isLiveAnimal: Boolean(isLiveAnimal),
         animalBreed: animalBreed || null,
         veterinaryCertificate: veterinaryCertificate || null,
-        images: images && images.length ? images : ['https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80'],
+        images: images && images.length
+          ? images
+          : req.body.imageUrl
+          ? [req.body.imageUrl]
+          : ['https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80'],
         lotBatchNumber: lotBatchNumber || `LOT-AGR-${Date.now().toString().slice(-6)}`,
         qualityScore: 98,
         certifications: Array.isArray(certifications) ? certifications : ['Verified Farmer Inspection'],
@@ -2458,7 +2465,9 @@ app.post('/api/orders/checkout', async (req, res) => {
       });
     }
 
-    const deliveryFee = subtotal > 20000 ? 0 : 2500;
+    // Direct from farmer (Farm-Gate Pickup): buyer does not pay logistics fee (0 ETB Free)
+    const isFarmGatePickup = deliveryModel === 'FARM_GATE_PICKUP' || req.body.deliveryFeeEtb === 0;
+    const deliveryFee = isFarmGatePickup ? 0 : (subtotal > 20000 ? 0 : 2500);
     const serviceFee = Math.round(subtotal * 0.02);
     const grandTotal = subtotal + deliveryFee + serviceFee;
     const orderNum = `AGR-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -3052,6 +3061,7 @@ app.get('/api/finance/applications', async (req, res) => {
         farmerPhone: users.phone,
         farmerRating: farmerProfiles.rating,
         farmName: farmerProfiles.farmName,
+        nationalIdNumber: users.nationalIdNumber,
       })
       .from(financeApplications)
       .leftJoin(users, eq(financeApplications.farmerId, users.id))
@@ -3147,6 +3157,257 @@ app.patch('/api/finance/applications/:id/decision', async (req, res) => {
     }
 
     res.json(updated[0]);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 9.1 FAYDA NATIONAL ID (FIN) BANK CREDIT & LOAN LINKAGE
+// ==========================================
+app.get('/api/finance/fayda/status', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const applicantId = user?.id || currentUserId;
+
+    // Check user record
+    let nationalId = user?.nationalIdNumber;
+    if (!nationalId) {
+      try {
+        const u = await db.select().from(users).where(eq(users.id, applicantId)).limit(1);
+        if (u.length && u[0].nationalIdNumber) nationalId = u[0].nationalIdNumber;
+      } catch (err) {}
+    }
+
+    if (!nationalId) {
+      const memUser = IN_MEMORY_USERS.find(u => u.id === applicantId);
+      if (memUser && memUser.nationalIdNumber) nationalId = memUser.nationalIdNumber;
+    }
+
+    res.json({
+      isLinked: Boolean(nationalId),
+      finNumber: nationalId || null,
+      farmerId: applicantId,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/finance/fayda/verify-fin', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const applicantId = user?.id || currentUserId;
+    const { finNumber } = req.body;
+
+    if (!finNumber || typeof finNumber !== 'string') {
+      return res.status(400).json({ error: 'Fayda Identification Number (FIN) is required.' });
+    }
+
+    const cleanFin = finNumber.replace(/[^0-9]/g, '');
+    if (cleanFin.length < 10) {
+      return res.status(400).json({ error: 'Invalid FIN format. Ethiopian Fayda ID must contain 12 numeric digits.' });
+    }
+
+    const formattedFin = cleanFin.length === 12
+      ? `${cleanFin.slice(0, 4)}-${cleanFin.slice(4, 8)}-${cleanFin.slice(8, 12)}`
+      : cleanFin;
+
+    // Save to database
+    try {
+      await db.update(users).set({ nationalIdNumber: formattedFin, isVerified: true }).where(eq(users.id, applicantId));
+      await db.update(farmerProfiles).set({ nationalIdNumber: formattedFin }).where(eq(farmerProfiles.userId, applicantId));
+    } catch (e) {
+      console.warn('DB update warning for FIN:', e);
+    }
+
+    // Update in-memory user if exists
+    const memUser = IN_MEMORY_USERS.find(u => u.id === applicantId);
+    if (memUser) {
+      memUser.nationalIdNumber = formattedFin;
+      memUser.isVerified = true;
+    }
+
+    const farmerName = user?.fullName || 'Bekele Tadesse';
+    const region = user?.region || 'Oromia';
+    const zone = user?.zone || 'East Shewa';
+    const woreda = user?.woreda || 'Adama Woreda';
+
+    const verificationResult = {
+      finNumber: formattedFin,
+      fullName: farmerName,
+      amharicName: 'በቀለ ታደሰ ገብረማርያም',
+      photoUrl: user?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+      dateOfBirth: '1984-04-12',
+      gender: 'MALE',
+      region: region,
+      zone: zone,
+      woreda: woreda,
+      kebele: 'Kebele 04 (Gefersa Farmland)',
+      phoneLinked: user?.phone || '+251 91 234 5678',
+      landUseCertificateNumber: `LUR-ETH-${region.slice(0, 2).toUpperCase()}-2024-${cleanFin.slice(-5)}`,
+      farmlandSizeHectares: 4.5,
+      primaryCrop: 'Magna White Teff & Hybrid Maize',
+      biometricVerificationStatus: 'VERIFIED',
+      verificationTimestamp: new Date().toISOString(),
+      creditScore: 825,
+      creditTier: 'TIER_1_PRIME',
+      maxCreditLimitEtb: 450000,
+      eligibleBanks: [
+        {
+          bankId: 'CBE',
+          bankName: 'Commercial Bank of Ethiopia',
+          productName: 'CBE Birr Agri-Advance',
+          badge: 'Government Partner • Lowest Rate',
+          interestRatePercent: 8.5,
+          maxLoanAmountEtb: 450000,
+          tenorMonths: 12,
+          collateralRequired: false,
+          disbursementSpeed: 'Instant to CBE Birr / Bank',
+          repaymentModel: 'Post-Harvest Balloon via Escrow',
+          colorScheme: {
+            bg: 'bg-purple-50',
+            border: 'border-purple-200',
+            text: 'text-purple-950',
+            badgeBg: 'bg-purple-100 text-purple-800',
+            accent: '#7B1846',
+          },
+        },
+        {
+          bankId: 'COOP_BANK',
+          bankName: 'Cooperative Bank of Oromia',
+          productName: 'Michu Smallholder Digital Loan',
+          badge: 'No Collateral • AI Underwritten',
+          interestRatePercent: 8.0,
+          maxLoanAmountEtb: 300000,
+          tenorMonths: 9,
+          collateralRequired: false,
+          disbursementSpeed: 'Instant to Coopay-Ebirr / Telebirr',
+          repaymentModel: 'Flexible Seasonal Installments',
+          colorScheme: {
+            bg: 'bg-emerald-50',
+            border: 'border-emerald-200',
+            text: 'text-emerald-950',
+            badgeBg: 'bg-emerald-100 text-emerald-800',
+            accent: '#059669',
+          },
+        },
+        {
+          bankId: 'AWASH',
+          bankName: 'Awash Bank',
+          productName: 'Awash Agro-Credit Facility',
+          badge: 'High Cap • Input Financing',
+          interestRatePercent: 8.25,
+          maxLoanAmountEtb: 500000,
+          tenorMonths: 12,
+          collateralRequired: false,
+          disbursementSpeed: '< 2 Hours to Awash Wallet',
+          repaymentModel: 'Post-Harvest Lump-Sum',
+          colorScheme: {
+            bg: 'bg-blue-50',
+            border: 'border-blue-200',
+            text: 'text-blue-950',
+            badgeBg: 'bg-blue-100 text-blue-800',
+            accent: '#2563eb',
+          },
+        },
+        {
+          bankId: 'DASHEN',
+          bankName: 'Dashen Bank',
+          productName: 'DubeAle Agri-Inputs Line',
+          badge: 'Seed & Fertilizer Direct Credit',
+          interestRatePercent: 7.9,
+          maxLoanAmountEtb: 250000,
+          tenorMonths: 6,
+          collateralRequired: false,
+          disbursementSpeed: 'Instant Direct Supplier Voucher',
+          repaymentModel: 'Monthly Post-Harvest Settlement',
+          colorScheme: {
+            bg: 'bg-amber-50',
+            border: 'border-amber-200',
+            text: 'text-amber-950',
+            badgeBg: 'bg-amber-100 text-amber-800',
+            accent: '#d97706',
+          },
+        },
+      ],
+    };
+
+    res.json({ success: true, verification: verificationResult });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/finance/fayda/apply-loan', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const applicantId = user?.id || currentUserId;
+    const {
+      finNumber,
+      bankId,
+      bankName,
+      productName,
+      amountRequestedEtb,
+      purpose,
+      targetCrop,
+      repaymentPeriodMonths,
+      disbursementDestination, // 'TELEBIRR' | 'CBE_BIRR' | 'BANK_ACCOUNT' | 'BUSINESS_AGENT_ESCROW'
+      interestRatePercent,
+    } = req.body;
+
+    const requestedAmount = Number(amountRequestedEtb);
+    if (!requestedAmount || requestedAmount <= 0) {
+      return res.status(400).json({ error: 'Valid loan amount is required.' });
+    }
+
+    const agreementRef = `NBE-FIN-${bankId || 'CBE'}-${Date.now().toString().slice(-7)}`;
+    const isAutoApproved = requestedAmount <= 350000;
+    const initialStatus = isAutoApproved ? 'APPROVED' : 'SUBMITTED';
+
+    let reviewNotes = `Underwritten via Ethiopian National ID (Fayda) biometric e-KYC. Partner Bank: ${bankName || 'Commercial Bank of Ethiopia'} (${productName || 'Agri-Credit'}). Agreement Ref: ${agreementRef}. Disbursement channel: ${disbursementDestination || 'TELEBIRR'}.`;
+
+    if (disbursementDestination === 'BUSINESS_AGENT_ESCROW') {
+      reviewNotes += ' [ESCROW ALLOCATED: Funds locked for certified seeds & fertilizer dispatch from Business Agent Hub].';
+    }
+
+    const newApp = await db
+      .insert(financeApplications)
+      .values({
+        farmerId: applicantId,
+        loanType: 'INPUT_FINANCING',
+        amountRequestedEtb: requestedAmount,
+        approvedAmountEtb: isAutoApproved ? requestedAmount : null,
+        purpose: purpose || 'Certified Seeds, Fertilizers & Harvest Working Capital',
+        targetCrop: targetCrop || 'Magna White Teff',
+        expectedYieldTons: 15,
+        expectedRevenueEtb: requestedAmount * 3,
+        repaymentPeriodMonths: Number(repaymentPeriodMonths) || 12,
+        interestRatePercent: Number(interestRatePercent) || 8.5,
+        status: initialStatus,
+        reviewNotes: reviewNotes,
+        disbursedAt: isAutoApproved ? new Date() : null,
+      })
+      .returning();
+
+    await db.insert(notifications).values({
+      userId: applicantId,
+      title: isAutoApproved ? `Bank Loan Approved & Disbursed: ${requestedAmount.toLocaleString()} ETB` : 'Loan Application Queued',
+      message: isAutoApproved
+        ? `${bankName || 'CBE'} has approved and disbursed ${requestedAmount.toLocaleString()} ETB using your verified Fayda National ID (FIN). ${disbursementDestination === 'BUSINESS_AGENT_ESCROW' ? 'Allocated to Seed & Input Supplier Escrow.' : 'Available in your mobile wallet.'}`
+        : `Your FIN-backed loan application for ${requestedAmount.toLocaleString()} ETB is under review by ${bankName || 'the bank'}.`,
+      type: 'FINANCE',
+      linkUrl: '/farmer/finance',
+    });
+
+    res.json({
+      success: true,
+      application: newApp[0],
+      agreementRef,
+      isAutoApproved,
+      disbursedAmountEtb: isAutoApproved ? requestedAmount : 0,
+      disbursementChannel: disbursementDestination || 'TELEBIRR',
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -4992,6 +5253,83 @@ app.post('/api/ai/yield-estimator', async (req, res) => {
   }
 });
 
+// 4. AI Produce Image & Specification Matcher (For Basic-Phone Farmers & Operators)
+app.post('/api/ai/match-produce-image', async (req, res) => {
+  try {
+    const { query = 'Teff' } = req.body;
+    const match = matchProduceVisual(query);
+
+    // If Gemini client is active and produce was inferred, optionally enhance description
+    const ai = getGeminiClient();
+    let enhancedDescription = match.description;
+
+    if (ai && match.confidenceScore < 95) {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: `Provide a 2-sentence market-grade description for Ethiopian agricultural produce: "${query}". Keep it authentic and suitable for commodities buyers. Return only the description text.`,
+        });
+        if (response.text) {
+          enhancedDescription = response.text.trim();
+        }
+      } catch {
+        // graceful fallback to static description
+      }
+    }
+
+    res.json({
+      success: true,
+      query,
+      ...match,
+      description: enhancedDescription,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 5. AI Payment Transaction Validator (Anti-Fraud & Authenticity Sentinel)
+app.post('/api/ai/validate-payment-transaction', (req, res) => {
+  try {
+    const { rail = 'CBE_MOBILE_BANKING', txNumber = '' } = req.body;
+    const validation = validatePaymentTransaction(rail, txNumber);
+    res.json({ success: true, ...validation });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 6. AI Payer Reconciliation ('Who Paid vs. Who Did Not Pay')
+app.get('/api/ai/payment-reconciliation', (req, res) => {
+  try {
+    const totalSettled = SAMPLE_RECONCILIATION_LEDGER
+      .filter((i) => i.paymentStatus === 'PAID_VERIFIED')
+      .reduce((acc, i) => acc + i.amountEtb, 0);
+
+    const totalPending = SAMPLE_RECONCILIATION_LEDGER
+      .filter((i) => i.paymentStatus !== 'PAID_VERIFIED')
+      .reduce((acc, i) => acc + i.amountEtb, 0);
+
+    res.json({
+      success: true,
+      ledger: SAMPLE_RECONCILIATION_LEDGER,
+      summary: {
+        totalOrders: SAMPLE_RECONCILIATION_LEDGER.length,
+        paidCount: SAMPLE_RECONCILIATION_LEDGER.filter((i) => i.paymentStatus === 'PAID_VERIFIED').length,
+        unpaidPendingCount: SAMPLE_RECONCILIATION_LEDGER.filter((i) => i.paymentStatus === 'UNPAID_PENDING').length,
+        unpaidOverdueCount: SAMPLE_RECONCILIATION_LEDGER.filter((i) => i.paymentStatus === 'UNPAID_OVERDUE').length,
+        underAuditCount: SAMPLE_RECONCILIATION_LEDGER.filter((i) => i.paymentStatus === 'UNDER_AUDIT').length,
+        rejectedFakeCount: SAMPLE_RECONCILIATION_LEDGER.filter((i) => i.paymentStatus === 'REJECTED_FAKE').length,
+        totalSettledEtb: totalSettled,
+        totalPendingEtb: totalPending,
+        cleanAuditRate: '96.4%',
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // ==========================================
 // 14. CHAPA ESCROW PAYMENT SYSTEM
@@ -5626,9 +5964,54 @@ app.use('/api/payments', paymentRouter);
 app.use('/api/v1/payments', paymentRouter);
 
 // ==========================================
+// 12.1 FLASK AI & IOT SIDECAR PROXY ROUTES
+// ==========================================
+app.post('/api/ai/scan-crop', async (req, res) => {
+  try {
+    const r = await fetch('http://localhost:5001/api/ai/scan-crop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+      signal: AbortSignal.timeout(15000),
+    });
+    res.json(await r.json());
+  } catch {
+    res.status(503).json({ error: 'AI service unavailable. Start flask_ai/app.py.' });
+  }
+});
+
+// AI Receipt Image & Payment Name Verification Route
+app.post('/api/ai/inspect-receipt-image', (req, res) => {
+  const rail = req.body.rail || req.body.channel || req.body.paymentMethod || 'CBE_MOBILE_BANKING';
+  const receiptData = req.body.receipt_image || req.body.receiptImage || '';
+  const fileName = req.body.fileName || req.body.filename || req.body.receipt_filename || '';
+  const result = inspectPaymentReceiptImage(rail, receiptData, fileName);
+  return res.json({ success: true, ...result });
+});
+
+app.all('/api/iot/*', async (req, res) => {
+  const flaskPath = req.path.replace('/api/iot', '/api/iot');
+  try {
+    const r = await fetch('http://localhost:5001' + flaskPath, {
+      method: req.method,
+      headers: { 'Content-Type': 'application/json' },
+      body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
+      signal: AbortSignal.timeout(10000),
+    });
+    res.json(await r.json());
+  } catch {
+    res.status(503).json({ error: 'IoT service unavailable. Start flask_ai/app.py.' });
+  }
+});
+
+
+// ==========================================
 // 13. VITE MIDDLEWARE & STATIC SERVING
 // ==========================================
 async function startServer() {
+  const publicPath = path.join(process.cwd(), 'public');
+  app.use(express.static(publicPath));
+
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({

@@ -102,12 +102,21 @@ export const LandingPageRoute: React.FC<LandingPageRouteProps> = ({
         else navigate('/login');
         break;
 
-      // ── Supplier-specific routes ──
+      // ── Business Agent & Input Supplier routes ──
+      case 'agent':
+      case 'seeds':
+      case 'business-agent':
+      case 'supplies':
+      case 'calculator':
+        navigate('/agent/dashboard');
+        break;
       case 'supplier-dashboard':
       case 'inputs':
-        if (currentUser?.role === 'INPUT_SUPPLIER') navigate('/supplier/dashboard');
-        else if (currentUser) navigate(getRoleDashboardPath(currentUser.role));
-        else navigate('/login');
+        if (currentUser?.role === 'INPUT_SUPPLIER' || (currentUser?.role as string) === 'BUSINESS_AGENT') {
+          navigate('/supplier/dashboard');
+        } else {
+          navigate('/agent/dashboard');
+        }
         break;
 
       // ── Logistics-specific routes ──

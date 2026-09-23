@@ -9,7 +9,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   login: (credentials: { phoneOrEmail: string; pin?: string; password?: string }) => Promise<{ success: boolean; user?: User; error?: string; requiresEmailVerification?: boolean }>;
   logout: () => Promise<void>;
-  switchPersona: (userId: number) => Promise<User | null>;
+  switchPersona: (userIdOrRole: number | string) => Promise<User | null>;
   refreshUser: () => Promise<User | null>;
   checkEmailVerification: (email: string) => Promise<{ success: boolean; verified: boolean; user?: User; message?: string }>;
   getRoleDashboardPath: (role?: UserRole) => string;
@@ -32,6 +32,7 @@ export const getRoleDashboardPath = (role?: UserRole): string => {
     case 'HUB_OPERATOR':
       return '/logistics/dashboard';
     case 'INPUT_SUPPLIER':
+    case 'BUSINESS_AGENT':
       return '/supplier/dashboard';
     case 'FINANCIAL_INSTITUTION':
       return '/finance/dashboard';
@@ -263,18 +264,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const switchPersona = async (userId: number): Promise<User | null> => {
+  const switchPersona = async (userIdOrRole: number | string): Promise<User | null> => {
     setIsLoading(true);
     try {
+      const payload =
+        typeof userIdOrRole === 'string'
+          ? { role: userIdOrRole }
+          : { userId: userIdOrRole };
+
       const res = await fetch('/api/auth/switch-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         const switchData = await res.json();
-        const targetId = switchData?.user?.id || userId;
+        const targetId = switchData?.user?.id || (typeof userIdOrRole === 'number' ? userIdOrRole : 1);
         const curRes = await fetch('/api/auth/current', {
           headers: {
             'x-user-id': String(targetId),

@@ -100,6 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       case 'BUYER':
         return 'bg-blue-50 text-blue-800 border-blue-300';
       case 'INPUT_SUPPLIER':
+      case 'BUSINESS_AGENT':
         return 'bg-amber-50 text-amber-800 border-amber-300';
       case 'DRIVER':
       case 'LOGISTICS_ADMIN':
@@ -142,8 +143,18 @@ export const Navbar: React.FC<NavbarProps> = ({
       { id: 'buyer-escrow',      label: t.sidebar.escrowManager },
     ],
     INPUT_SUPPLIER: [
-      { id: 'supplier-dashboard', label: t.sidebar.supplierDashboard },
-      { id: 'inputs',             label: t.sidebar.inputCatalog },
+      { id: 'supplier-dashboard', label: 'Business Agent (Seeds & Inputs)' },
+      { id: 'seeds',              label: 'Certified Seeds' },
+      { id: 'supplies',           label: 'Fertilizers & Tech' },
+      { id: 'orders',             label: 'Co-op Requests' },
+      { id: 'calculator',         label: 'Input Calculator' },
+    ],
+    BUSINESS_AGENT: [
+      { id: 'supplier-dashboard', label: 'Business Agent (Seeds & Inputs)' },
+      { id: 'seeds',              label: 'Certified Seeds' },
+      { id: 'supplies',           label: 'Fertilizers & Tech' },
+      { id: 'orders',             label: 'Co-op Requests' },
+      { id: 'calculator',         label: 'Input Calculator' },
     ],
     DRIVER: [
       { id: 'driver-dashboard',   label: t.sidebar.driverDashboard },
@@ -175,6 +186,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     ],
     GUEST: [
       { id: 'marketplace',   label: t.nav.marketplace },
+      { id: 'agent',         label: 'Business Agent (Seeds & Inputs) 🌱' },
       { id: 'salvage',       label: 'Salvage Exchange ⚡' },
       { id: 'innovation',    label: 'Core Innovation Engine (4 Pillars) 🔬' },
       { id: 'about',         label: t.nav.about },
@@ -186,6 +198,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     BUYER: [],
     BUSINESS_BUYER: [],
     INPUT_SUPPLIER: [],
+    BUSINESS_AGENT: [],
     DRIVER: [],
     LOGISTICS_ADMIN: [],
     HUB_OPERATOR: [],
@@ -445,7 +458,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             handleNavClick(
                               currentUser.role === 'FARMER' ? 'farmer-dashboard'
                               : currentUser.role === 'BUYER' || currentUser.role === 'BUSINESS_BUYER' ? 'buyer-dashboard'
-                              : currentUser.role === 'INPUT_SUPPLIER' ? 'supplier-dashboard'
+                              : currentUser.role === 'INPUT_SUPPLIER' || currentUser.role === 'BUSINESS_AGENT' ? 'supplier-dashboard'
                               : currentUser.role === 'FINANCIAL_INSTITUTION' ? 'finance-dashboard'
                               : 'logistics-dashboard'
                             );

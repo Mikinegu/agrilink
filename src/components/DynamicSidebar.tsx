@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   ExternalLink,
+  Zap,
 } from 'lucide-react';
 import { AgriLinkLogo } from './AgriLinkLogo.tsx';
 import { UserRole } from '../types/index.ts';
@@ -78,8 +79,18 @@ export const getTranslatedSidebarConfig = (t: TranslationDictionary): Record<Use
     { label: t.sidebar.settlementLedger, path: '/logistics/earnings', icon: CircleDollarSign },
   ],
   INPUT_SUPPLIER: [
-    { label: t.sidebar.supplierDashboard, path: '/supplier/dashboard', icon: LayoutDashboard },
-    { label: t.sidebar.inputCatalog, path: '/supplier/products', icon: Boxes },
+    { label: 'Business Agent Hub', path: '/supplier/dashboard', icon: LayoutDashboard },
+    { label: 'Certified Seed Desk', path: '/supplier/seeds', icon: Sprout },
+    { label: 'Fertilizers & Tech', path: '/supplier/supplies', icon: Zap },
+    { label: 'Farmer Co-op Orders', path: '/supplier/orders', icon: Truck },
+    { label: 'Input Calculator', path: '/supplier/calculator', icon: Boxes },
+  ],
+  BUSINESS_AGENT: [
+    { label: 'Business Agent Hub', path: '/supplier/dashboard', icon: LayoutDashboard },
+    { label: 'Certified Seed Desk', path: '/supplier/seeds', icon: Sprout },
+    { label: 'Fertilizers & Tech', path: '/supplier/supplies', icon: Zap },
+    { label: 'Farmer Co-op Orders', path: '/supplier/orders', icon: Truck },
+    { label: 'Input Calculator', path: '/supplier/calculator', icon: Boxes },
   ],
   FINANCIAL_INSTITUTION: [
     { label: t.sidebar.creditUnderwriting, path: '/finance/dashboard', icon: LayoutDashboard },
@@ -102,7 +113,8 @@ export const getTranslatedRoleLabels = (t: TranslationDictionary): Record<UserRo
   DRIVER: { title: t.roles.DRIVER, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
   LOGISTICS_ADMIN: { title: t.roles.LOGISTICS_ADMIN, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
   HUB_OPERATOR: { title: t.roles.HUB_OPERATOR, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
-  INPUT_SUPPLIER: { title: t.roles.INPUT_SUPPLIER, color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' },
+  INPUT_SUPPLIER: { title: t.roles.INPUT_SUPPLIER || 'Business Agent', color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' },
+  BUSINESS_AGENT: { title: t.roles.INPUT_SUPPLIER || 'Business Agent', color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' },
   FINANCIAL_INSTITUTION: { title: t.roles.FINANCIAL_INSTITUTION, color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200' },
   PLATFORM_ADMIN: { title: t.roles.PLATFORM_ADMIN, color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200' },
 });
@@ -149,8 +161,18 @@ export const SIDEBAR_CONFIG: Record<UserRole, SidebarItem[]> = {
     { label: 'Settlement Ledger', path: '/logistics/earnings', icon: CircleDollarSign },
   ],
   INPUT_SUPPLIER: [
-    { label: 'Supplier Dashboard', path: '/supplier/dashboard', icon: LayoutDashboard },
-    { label: 'Input Catalog', path: '/supplier/products', icon: Boxes },
+    { label: 'Business Agent Hub', path: '/supplier/dashboard', icon: LayoutDashboard },
+    { label: 'Certified Seed Desk', path: '/supplier/seeds', icon: Sprout },
+    { label: 'Fertilizers & Tech', path: '/supplier/supplies', icon: Zap },
+    { label: 'Farmer Co-op Orders', path: '/supplier/orders', icon: Truck },
+    { label: 'Input Calculator', path: '/supplier/calculator', icon: Boxes },
+  ],
+  BUSINESS_AGENT: [
+    { label: 'Business Agent Hub', path: '/supplier/dashboard', icon: LayoutDashboard },
+    { label: 'Certified Seed Desk', path: '/supplier/seeds', icon: Sprout },
+    { label: 'Fertilizers & Tech', path: '/supplier/supplies', icon: Zap },
+    { label: 'Farmer Co-op Orders', path: '/supplier/orders', icon: Truck },
+    { label: 'Input Calculator', path: '/supplier/calculator', icon: Boxes },
   ],
   FINANCIAL_INSTITUTION: [
     { label: 'Credit Underwriting', path: '/finance/dashboard', icon: LayoutDashboard },
@@ -173,7 +195,8 @@ export const ROLE_LABELS: Record<UserRole, { title: string; color: string; bg: s
   DRIVER: { title: 'Fleet Driver', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
   LOGISTICS_ADMIN: { title: 'Logistics Operator', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
   HUB_OPERATOR: { title: 'Hub Logistics', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
-  INPUT_SUPPLIER: { title: 'Input Supplier', color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' },
+  INPUT_SUPPLIER: { title: 'Business Agent (Seeds & Inputs)', color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' },
+  BUSINESS_AGENT: { title: 'Business Agent (Seeds & Inputs)', color: 'text-teal-700', bg: 'bg-teal-50 border-teal-200' },
   FINANCIAL_INSTITUTION: { title: 'Financial Institution', color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200' },
   PLATFORM_ADMIN: { title: 'Platform Admin', color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200' },
 };

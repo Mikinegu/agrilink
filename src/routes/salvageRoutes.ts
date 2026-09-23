@@ -175,13 +175,61 @@ router.get('/lots', async (req: Request, res: Response) => {
           Number(lot.defect_severity_pct)
         );
 
+        const weightKg = Number(lot.total_weight_kg || lot.volume_kg || 15000);
+        const benchmarkPrice = Number(lot.benchmark_price_per_kg || 80);
+        const farmerDiscount = Number(lot.farmer_discount_percent || 35);
+        const discountedPrice = Number((benchmarkPrice * (1 - farmerDiscount / 100)).toFixed(2));
+        const defectPct = Number(lot.defect_severity_pct || 25);
+        const brix = Number(lot.brix_level || 5.8);
+
         return {
           ...lot,
+          id: String(lot.id),
+          lotNumber: lot.lot_number || `SALV-${String(lot.id).padStart(6, '0')}`,
+          commodity: lot.commodity_name || lot.commodity || 'Distressed Commodity',
+          variety: lot.variety || 'Commercial Hybrid',
+          category: lot.category || 'VEGETABLE',
+          lotWeightTons: Number((weightKg / 1000).toFixed(1)),
+          lotWeightKg: weightKg,
+          benchmarkPricePerKg: benchmarkPrice,
+          totalBenchmarkValue: weightKg * benchmarkPrice,
+          farmerDiscountPercent: farmerDiscount,
+          discountedPricePerKg: discountedPrice,
+          totalDiscountedValue: weightKg * discountedPrice,
+          conditionSummary: lot.notes || 'Crop not in fresh supermarket condition; high Brix & pulp intact for food processors.',
+          damageCauses: [lot.defect_type || 'SUNSCALD'],
+          defectPercentage: defectPct,
+          brixRating: brix,
+          acidityPh: Number(lot.moisture_pct ? (lot.moisture_pct / 15).toFixed(2) : 4.2),
+          initialShelfLifeHours: 48,
+          softRotOnsetHoursRemaining: hoursRemaining > 0 ? hoursRemaining : 24,
+          imageUrl: lot.image_url || 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80',
+          farmerName: lot.farmer_name || 'Ato Bekele Tadesse',
+          farmerOrg: lot.farmer_org || 'Wonji Horizon Cooperative Farms',
+          region: lot.farmer_region || 'Oromia',
+          locationDetails: lot.origin_packhouse || 'Wonji Gefersa Packhouse Hub #3',
           hoursRemaining,
           isExpired: hoursRemaining <= 0,
           industrialSuitability: suitability,
           negotiations: negotiations || [],
           activeNegotiation: negotiations[0] || null,
+          bids: (negotiations || []).map((n: any) => ({
+            id: String(n.id),
+            lotId: String(n.lot_id),
+            processorId: String(n.buyer_id),
+            processorName: n.buyer_name || 'Industrial Food Processor',
+            processorOrg: n.buyer_org || 'Commercial Processing Ltd.',
+            proposedDiscountPercent: Number(n.proposed_discount_pct || 40),
+            offeredPricePerKg: Number(n.offered_unit_price || 48),
+            totalOfferAmount: Number(n.offered_total_price || 720000),
+            factorySavings: Number(n.factory_savings || 480000),
+            proposedDeliveryDate: 'Immediate Cold-Chain Dispatch',
+            plantLocation: 'Dukem Agro-Industrial Park',
+            intendedProduct: n.intended_product || 'Tomato Paste & Puree',
+            notes: n.buyer_notes || 'Reefer truck ready for dispatch upon escrow lock.',
+            createdAt: n.created_at || new Date().toISOString(),
+            status: n.status || 'SUBMITTED',
+          })),
           shipment: shipments[0] || null,
           escrowVault: vaults[0] || null,
         };

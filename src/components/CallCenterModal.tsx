@@ -23,9 +23,14 @@ import {
   Radio,
   User,
   Activity,
+  Sprout,
+  Check,
+  PackageCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { playRingtone, playConnectedChime, playEndCallTone, playDTMF } from '../utils/callAudio.ts';
+import { matchProduceVisual, COMMODITY_CATALOG, ProduceMatchResult } from '../utils/aiProduceImageMatcher.ts';
 
 interface CallCenterModalProps {
   isOpen: boolean;
@@ -118,8 +123,84 @@ const AGENT_RESPONSES: AgentResponse[] = [
 export const CallCenterModal: React.FC<CallCenterModalProps> = ({ isOpen, onClose }) => {
   const { t, currentLanguage, setLanguage } = useTranslation();
 
-  // Navigation Tabs: 'call' | 'chat' | 'numbers'
-  const [activeTab, setActiveTab] = useState<'call' | 'chat' | 'numbers'>('call');
+  // Navigation Tabs: 'call' | 'chat' | 'numbers' | 'ai_farmer_intake'
+  const [activeTab, setActiveTab] = useState<'call' | 'chat' | 'numbers' | 'ai_farmer_intake'>('call');
+
+  // ── AI Produce Intake for Basic-Phone Farmers ─────────────────────────
+  const [callerName, setCallerName] = useState('Ato Bekele Tadesse');
+  const [callerPhone, setCallerPhone] = useState('+251 91 234 5678');
+  const [callerLocation, setCallerLocation] = useState('Wonji Gefersa, East Shewa');
+  const [callerFarmerId, setCallerFarmerId] = useState(1);
+  const [intakeCropQuery, setIntakeCropQuery] = useState('White Teff');
+  const [matchedProduce, setMatchedProduce] = useState<ProduceMatchResult>(() => matchProduceVisual('White Teff'));
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [intakeQty, setIntakeQty] = useState(50);
+  const [customPrice, setCustomPrice] = useState<number | null>(null);
+  const [isPublishingListing, setIsPublishingListing] = useState(false);
+  const [publishSuccessNotice, setPublishSuccessNotice] = useState<any | null>(null);
+
+  const handleProduceQueryChange = (query: string) => {
+    setIntakeCropQuery(query);
+    const result = matchProduceVisual(query);
+    setMatchedProduce(result);
+    setSelectedPhotoIndex(0);
+    setCustomPrice(null);
+  };
+
+  const handlePublishFarmerListing = async () => {
+    setIsPublishingListing(true);
+    setPublishSuccessNotice(null);
+    try {
+      const activeImg = matchedProduce.images[selectedPhotoIndex]?.url || matchedProduce.images[0].url;
+      const unitPrice = customPrice || matchedProduce.benchmarkPriceEtb;
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': String(callerFarmerId),
+        },
+        body: JSON.stringify({
+          name: matchedProduce.nameEn,
+          categoryId: matchedProduce.categoryId,
+          variety: matchedProduce.variety,
+          grade: matchedProduce.defaultGrade,
+          pricePerUnitEtb: unitPrice,
+          unit: matchedProduce.standardUnit,
+          availableQuantity: Number(intakeQty),
+          minOrderQuantity: 5,
+          harvestDate: new Date().toISOString().split('T')[0],
+          description: matchedProduce.description,
+          farmLocation: callerLocation,
+          region: callerLocation.includes('Gojjam') ? 'Amhara' : callerLocation.includes('Sidama') ? 'Sidama' : 'Oromia',
+          isOrganic: true,
+          images: [activeImg],
+          imageUrl: activeImg,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPublishSuccessNotice({
+          product: data,
+          cropName: matchedProduce.nameEn,
+          photoUrl: activeImg,
+          qty: intakeQty,
+          unit: matchedProduce.standardUnit,
+          price: unitPrice,
+          totalValue: intakeQty * unitPrice,
+          smsMessage: currentLanguage === 'am'
+            ? `የአግሪሊንክ ማረጋገጫ፡ የእርስዎ ${intakeQty} ${matchedProduce.standardUnit === 'QUINTAL' ? 'ኩንታል' : 'ኪሎ'} ${matchedProduce.nameAm} በገበያው ላይ በፎቶ ተዘርዝሯል!`
+            : currentLanguage === 'om'
+            ? `Mirkaneessa AgriLink: Oomishni keessan ${intakeQty} ${matchedProduce.nameOm} suuraa AI wajjin gabaa irratti galmaa'eera!`
+            : `AgriLink Confirmation: Your ${intakeQty} ${matchedProduce.standardUnit} of ${matchedProduce.nameEn} has been published to the national marketplace with verified AI photography!`,
+        });
+      }
+    } catch (err: any) {
+      console.error('Error publishing farmer produce:', err);
+    } finally {
+      setIsPublishingListing(false);
+    }
+  };
 
   // ── Live Voice Call State ──────────────────────────────────────────────
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'connected' | 'ended'>('idle');
@@ -1337,6 +1418,340 @@ export const CallCenterModal: React.FC<CallCenterModalProps> = ({ isOpen, onClos
                     </button>
                   </form>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════
+              TAB 4: AI FARMER INTAKE & PRODUCE IMAGE MATCHER (NON-SMARTPHONE)
+             ════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'ai_farmer_intake' && (
+            <div className="p-5 sm:p-6 space-y-6">
+              {/* Context Banner */}
+              <div className="bg-gradient-to-r from-amber-950 via-zinc-950 to-emerald-950 border border-amber-600/40 rounded-3xl p-5 text-white shadow-md relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-36 h-36 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex items-start gap-3 relative z-10">
+                  <div className="p-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-amber-300 shrink-0">
+                    <Sparkles className="h-6 w-6 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-full bg-amber-400 text-zinc-950 text-[10px] font-black uppercase">
+                        AI Vision Auto-Matcher
+                      </span>
+                      <span className="text-xs text-amber-200/80 font-mono">
+                        Basic 2G Phone Intake Protocol
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-white mt-1">
+                      Assisted Produce Listing for Farmers Without Smartphones
+                    </h3>
+                    <p className="text-xs text-zinc-300 mt-1 max-w-xl">
+                      When farmers call over 2G feature phones (no camera/internet), the AI Vision Assistant instantly identifies the produce, supplies verified high-resolution crop photography, sets ECX grades, and publishes their listing with 1-click SMS dispatch.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Published Success Banner */}
+              {publishSuccessNotice && (
+                <div className="p-4 rounded-3xl bg-emerald-50 border-2 border-emerald-400 shadow-md animate-in fade-in space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={publishSuccessNotice.photoUrl}
+                        alt="Published Produce"
+                        className="h-14 w-14 rounded-2xl object-cover ring-2 ring-emerald-500 shadow-sm"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black">
+                            LIVE ON MARKETPLACE
+                          </span>
+                          <span className="text-xs font-mono text-zinc-500">
+                            Lot #{publishSuccessNotice.product.lotBatchNumber || 'AGR-LOT-2026'}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-black text-zinc-900 mt-0.5">
+                          {publishSuccessNotice.cropName} &bull; {publishSuccessNotice.qty} {publishSuccessNotice.unit}
+                        </h4>
+                        <p className="text-xs text-emerald-800 font-bold">
+                          Total Value: {publishSuccessNotice.totalValue.toLocaleString()} ETB ({publishSuccessNotice.price.toLocaleString()} ETB/{publishSuccessNotice.unit})
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setPublishSuccessNotice(null)}
+                      className="text-zinc-400 hover:text-zinc-700 p-1 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* SMS Confirmation Badge */}
+                  <div className="p-3 bg-white rounded-2xl border border-emerald-200 text-xs text-zinc-700 flex items-start gap-2.5">
+                    <MessageSquare className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-emerald-800 block">
+                        Automated SMS Dispatched to Farmer ({callerPhone})
+                      </span>
+                      <p className="text-xs text-zinc-600 italic mt-0.5">
+                        "{publishSuccessNotice.smsMessage}"
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Form Grid: Farmer Details & Produce Intake */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Left: Caller Profile & Produce Query */}
+                <div className="space-y-4">
+                  {/* Select Calling Farmer */}
+                  <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-zinc-800 flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-emerald-700" />
+                        <span>Calling Farmer Profile (Phone Caller):</span>
+                      </label>
+                      <span className="text-[10px] font-mono text-zinc-400">Caller ID Attached</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 1, name: 'Ato Bekele Tadesse', phone: '+251 91 234 5678', loc: 'Wonji, East Shewa' },
+                        { id: 2, name: 'W/ro Almaz Desta', phone: '+251 92 987 6543', loc: 'Yirgacheffe, Sidama' },
+                        { id: 3, name: 'Ato Worku Mengistu', phone: '+251 91 876 5432', loc: 'Dejen, East Gojjam' },
+                        { id: 4, name: 'Fatima Abdi', phone: '+251 93 456 7890', loc: 'Jijiga, Somali' },
+                      ].map((farmer) => (
+                        <button
+                          key={farmer.id}
+                          type="button"
+                          onClick={() => {
+                            setCallerFarmerId(farmer.id);
+                            setCallerName(farmer.name);
+                            setCallerPhone(farmer.phone);
+                            setCallerLocation(farmer.loc);
+                          }}
+                          className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                            callerFarmerId === farmer.id
+                              ? 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-500/20 font-bold'
+                              : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100'
+                          }`}
+                        >
+                          <p className="line-clamp-1">{farmer.name}</p>
+                          <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{farmer.phone}</p>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 border-t border-zinc-200/60 flex items-center justify-between text-[11px] text-zinc-500">
+                      <span>Location: <strong className="text-zinc-800">{callerLocation}</strong></span>
+                      <span>Phone: <strong className="text-zinc-800 font-mono">{callerPhone}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Produce Search & Voice Input */}
+                  <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-800 mb-1">
+                        What Produce is the Farmer Calling to List?
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={intakeCropQuery}
+                          onChange={(e) => handleProduceQueryChange(e.target.value)}
+                          placeholder="Type or speak produce: e.g. Teff, Coffee, Chickpeas, Garlic..."
+                          className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 outline-none text-zinc-900"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Quick voice simulation
+                            handleProduceQueryChange('White Magna Teff');
+                          }}
+                          className="absolute right-2 top-2 p-1 rounded-lg bg-zinc-100 hover:bg-emerald-50 text-zinc-600 hover:text-emerald-700 cursor-pointer"
+                          title="Auto-detect voice"
+                        >
+                          <Mic className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Produce Chips */}
+                    <div>
+                      <span className="text-[10px] font-bold text-zinc-400 block mb-1.5 uppercase">
+                        Quick Select Any Crop Category:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: '🌾 White Teff', q: 'White Magna Teff' },
+                          { label: '☕ Yirgacheffe Coffee', q: 'Yirgacheffe Washed Coffee' },
+                          { label: '🧄 Chencha Garlic', q: 'Chencha White Garlic' },
+                          { label: '🥔 Shashemene Potatoes', q: 'Shashemene Potatoes' },
+                          { label: '🥑 Export Hass Avocado', q: 'Hass Avocado' },
+                          { label: '🌾 Durum Wheat', q: 'Durum Wheat' },
+                          { label: '🫘 Kabuli Chickpeas', q: 'Kabuli Chickpeas' },
+                          { label: '🧅 Red Onions', q: 'Bombay Red Onions' },
+                          { label: '🍅 Roma Tomatoes', q: 'Roma Tomatoes' },
+                          { label: '🌶️ Mareko Berbere', q: 'Mareko Red Berbere' },
+                          { label: '🍯 White Honey', q: 'Tigray White Honey' },
+                          { label: '🌱 Humera Sesame', q: 'Humera White Sesame' },
+                        ].map((chip, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleProduceQueryChange(chip.q)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                              intakeCropQuery === chip.q
+                                ? 'bg-emerald-700 text-white shadow-xs'
+                                : 'bg-white text-zinc-600 hover:bg-zinc-100 border border-zinc-200'
+                            }`}
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Quantity & Unit Pricing Adjustments */}
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-200/60">
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-700 mb-1">
+                          Available Quantity ({matchedProduce.standardUnit}):
+                        </label>
+                        <input
+                          type="number"
+                          value={intakeQty}
+                          onChange={(e) => setIntakeQty(Number(e.target.value))}
+                          min={1}
+                          className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-xl text-xs font-black text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-700 mb-1">
+                          Price per {matchedProduce.standardUnit} (ETB):
+                        </label>
+                        <input
+                          type="number"
+                          value={customPrice || matchedProduce.benchmarkPriceEtb}
+                          onChange={(e) => setCustomPrice(Number(e.target.value))}
+                          className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-xl text-xs font-black text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: AI Visual Card, Photo Carousel & 1-Click Publish */}
+                <div className="p-4 rounded-3xl bg-zinc-900 text-white space-y-4 flex flex-col justify-between shadow-lg border border-zinc-800">
+                  <div className="space-y-3">
+                    {/* Header with AI Badge */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950 font-black text-[10px]">
+                          AI MATCHED: {matchedProduce.confidenceScore}% CONFIDENCE
+                        </span>
+                        <span className="text-[10px] text-zinc-400">ECX Standards</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-amber-300 text-[10px] font-bold border border-zinc-700">
+                        {matchedProduce.categoryName}
+                      </span>
+                    </div>
+
+                    {/* Crop Identity Title */}
+                    <div>
+                      <h4 className="text-base font-black text-white">
+                        {matchedProduce.nameEn}
+                      </h4>
+                      <div className="flex items-center gap-2 text-xs text-zinc-400 mt-0.5">
+                        <span>{matchedProduce.nameAm}</span>
+                        <span>&bull;</span>
+                        <span className="italic">{matchedProduce.nameOm}</span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400 mt-1 line-clamp-2">
+                        {matchedProduce.description}
+                      </p>
+                    </div>
+
+                    {/* AI Photographic Carousel Selector */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          <span>AI Curated Crop Photography (Choose Best Match):</span>
+                        </span>
+                        <span className="text-[10px] text-zinc-400">
+                          {matchedProduce.images.length} photos ready
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {matchedProduce.images.map((img, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => setSelectedPhotoIndex(idx)}
+                            className={`relative rounded-2xl overflow-hidden cursor-pointer border-2 transition-all group ${
+                              selectedPhotoIndex === idx
+                                ? 'border-amber-400 ring-2 ring-amber-400/50 scale-101 shadow-md'
+                                : 'border-zinc-700 opacity-60 hover:opacity-100 hover:border-zinc-500'
+                            }`}
+                          >
+                            <img
+                              src={img.url}
+                              alt={img.caption}
+                              className="h-24 w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-1.5">
+                              <span className="text-[9px] text-white font-semibold line-clamp-1">
+                                {img.caption}
+                              </span>
+                            </div>
+                            {selectedPhotoIndex === idx && (
+                              <div className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-amber-400 text-zinc-950 flex items-center justify-center font-bold text-[10px] shadow">
+                                <Check className="h-3 w-3 stroke-[3]" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Standard Specs Summary */}
+                    <div className="p-3 bg-zinc-800/80 rounded-2xl border border-zinc-700/60 text-xs space-y-1.5">
+                      <div className="flex justify-between">
+                        <span className="text-zinc-400">ECX Quality Grade:</span>
+                        <span className="font-bold text-emerald-400">{matchedProduce.gradeLabel}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-zinc-400">Standard Packaging:</span>
+                        <span className="font-medium text-white">{matchedProduce.packagingType}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-zinc-700/80 pt-1.5">
+                        <span className="text-zinc-400">Total Consignment Value:</span>
+                        <span className="font-mono font-black text-amber-300 text-sm">
+                          {(intakeQty * (customPrice || matchedProduce.benchmarkPriceEtb)).toLocaleString()} ETB
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 1-Click Publish Button */}
+                  <button
+                    type="button"
+                    disabled={isPublishingListing}
+                    onClick={handlePublishFarmerListing}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-amber-400 hover:from-emerald-400 hover:to-amber-300 text-zinc-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950 transition-all hover:scale-101 cursor-pointer"
+                  >
+                    <PackageCheck className="h-4 w-4" />
+                    <span>
+                      {isPublishingListing
+                        ? 'Publishing to National Marketplace...'
+                        : `🚀 Publish Marketplace Listing with AI Photo (${intakeQty} ${matchedProduce.standardUnit})`}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           )}

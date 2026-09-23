@@ -51,6 +51,12 @@ export const DistressedListingModal: React.FC<DistressedListingModalProps> = ({
   const [acidityPh, setAcidityPh] = useState(4.25);
   const [locationDetails, setLocationDetails] = useState('Wonji Gefersa Packhouse Hub #3');
 
+  // Farmer's Offered Discount State (solves distress by letting farmer price to sell immediately)
+  const [farmerDiscountPercent, setFarmerDiscountPercent] = useState<number>(35);
+  const [conditionSummary, setConditionSummary] = useState<string>(
+    'Surface heat blemishes/rain fissures; pulp sugars and acidity 100% prime for industrial processing.'
+  );
+
   // Calculate Degradation Countdown Hours
   // Higher defect % and sunscald/splitting accelerate soft rot
   const calculatedShelfLifeHours = useMemo(() => {
@@ -87,6 +93,8 @@ export const DistressedListingModal: React.FC<DistressedListingModalProps> = ({
     e.preventDefault();
     const weightKg = Math.round(weightTons * 1000);
     const totalBenchmarkValue = weightKg * benchmarkPricePerKg;
+    const discountedPricePerKg = Number((benchmarkPricePerKg * (1 - farmerDiscountPercent / 100)).toFixed(2));
+    const totalDiscountedValue = Math.round(weightKg * discountedPricePerKg);
 
     onSubmitLot({
       lotNumber: `SALV-${Date.now().toString().slice(-6)}`,
@@ -102,6 +110,10 @@ export const DistressedListingModal: React.FC<DistressedListingModalProps> = ({
       lotWeightKg: weightKg,
       benchmarkPricePerKg,
       totalBenchmarkValue,
+      farmerDiscountPercent,
+      discountedPricePerKg,
+      totalDiscountedValue,
+      conditionSummary: conditionSummary || 'Surface heat blemishes/rain fissures; pulp sugars and acidity 100% prime for industrial processing.',
       harvestDate,
       damageCauses: selectedCauses.length ? selectedCauses : ['SUNSCALD'],
       defectPercentage,
@@ -361,7 +373,112 @@ export const DistressedListingModal: React.FC<DistressedListingModalProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Degradation Countdown & Industrial Suitability Real-Time Callout */}
+          {/* Section 3: Farmer's Offered Salvage Discount (Solves Distressed Harvest) */}
+          <div className="pt-4 border-t border-zinc-100 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <DollarSign className="h-4 w-4 text-emerald-600" />
+                3. Your Offered Salvage Discount (B2B Industrial Rescue)
+              </h3>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                Guaranteed Cash Recovery
+              </span>
+            </div>
+
+            <p className="text-[11px] text-zinc-500">
+              Fresh retail supermarkets reject blemished or split crops. By offering an attractive discount to industrial food processors (paste, juice, ketchup), your harvest is purchased immediately and rescued under cold-chain reefer transport!
+            </p>
+
+            {/* Discount Quick Presets */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { pct: 20, label: '20% Off', hint: 'Minor Cosmetic' },
+                { pct: 30, label: '30% Off', hint: 'Hail Scars' },
+                { pct: 35, label: '35% Off', hint: 'Recommended' },
+                { pct: 50, label: '50% Off', hint: 'Urgent Clearance' },
+              ].map((preset) => (
+                <button
+                  key={preset.pct}
+                  type="button"
+                  onClick={() => setFarmerDiscountPercent(preset.pct)}
+                  className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                    farmerDiscountPercent === preset.pct
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-black shadow-xs ring-1 ring-emerald-500/30'
+                      : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 font-bold'
+                  }`}
+                >
+                  <p className="text-xs">{preset.label}</p>
+                  <p className="text-[10px] text-zinc-500 font-medium">{preset.hint}</p>
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Discount Slider */}
+            <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-zinc-700">Custom Discount Slider:</span>
+                <span className="font-black text-emerald-700 font-mono text-sm bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300">
+                  -{farmerDiscountPercent}% OFF
+                </span>
+              </div>
+              <input
+                type="range"
+                min="15"
+                max="65"
+                step="1"
+                value={farmerDiscountPercent}
+                onChange={(e) => setFarmerDiscountPercent(parseInt(e.target.value))}
+                className="w-full accent-emerald-600 cursor-pointer h-2 bg-zinc-200 rounded-lg"
+              />
+            </div>
+
+            {/* Live Pricing & Recovery Breakdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="p-3 rounded-xl bg-zinc-100 border border-zinc-200">
+                <span className="text-[10px] text-zinc-400 font-bold block">Benchmark Grade-A</span>
+                <span className="font-bold text-zinc-700 text-sm">{benchmarkPricePerKg} ETB/kg</span>
+                <span className="text-[10px] text-zinc-400 block line-through">
+                  Total: {Math.round(weightTons * 1000 * benchmarkPricePerKg).toLocaleString()} ETB
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-emerald-50 border-2 border-emerald-500/40 text-emerald-950">
+                <span className="text-[10px] text-emerald-700 font-bold block">Your Offered Price</span>
+                <span className="font-black text-emerald-800 text-base">
+                  {(benchmarkPricePerKg * (1 - farmerDiscountPercent / 100)).toFixed(2)} ETB/kg
+                </span>
+                <span className="text-[10px] text-emerald-700 font-bold block">
+                  You Recover: {Math.round(weightTons * 1000 * benchmarkPricePerKg * (1 - farmerDiscountPercent / 100)).toLocaleString()} ETB
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-950">
+                <span className="text-[10px] text-blue-700 font-bold block">Processor Savings</span>
+                <span className="font-black text-blue-900 text-base">
+                  {farmerDiscountPercent}% Savings
+                </span>
+                <span className="text-[10px] text-blue-700 font-bold block">
+                  Buyer Saves: {Math.round(weightTons * 1000 * benchmarkPricePerKg * (farmerDiscountPercent / 100)).toLocaleString()} ETB
+                </span>
+              </div>
+            </div>
+
+            {/* Condition Description Input */}
+            <div>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">
+                Condition Note for Buyers (Explain why pulp/sugar is prime despite surface defect):
+              </label>
+              <textarea
+                value={conditionSummary}
+                onChange={(e) => setConditionSummary(e.target.value)}
+                rows={2}
+                placeholder="e.g. Skin splitting after sudden rain surge; pulp sugar is high at 5.8°Bx, 100% prime for tomato paste or puree cooking."
+                className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Section 4: Degradation Countdown & Industrial Suitability Real-Time Callout */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Shelf-Life Countdown Box */}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-950 via-zinc-950 to-zinc-900 text-white border border-rose-900/50 shadow-md">

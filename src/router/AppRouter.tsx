@@ -19,13 +19,18 @@ import { AgriIntelligenceRadar } from '../components/AgriIntelligenceRadar.tsx';
 import { BuyerDashboard } from '../components/BuyerDashboard.tsx';
 import { MarketplaceView } from '../components/MarketplaceView.tsx';
 import { BusinessProcurement } from '../components/BusinessProcurement.tsx';
+import { BuyRequestsPage } from '../components/BuyRequestsPage.tsx';
 import { BuyerOrders } from '../components/BuyerOrders.tsx';
 import { BuyerEscrowManager } from '../components/BuyerEscrowManager.tsx';
 
 import { LogisticsDashboard } from '../components/LogisticsDashboard.tsx';
 import { LogisticsHubPortal } from '../components/LogisticsHubPortal.tsx';
+import { LoadBoard } from '../components/LoadBoard.tsx';
+import { ActiveTrip } from '../components/ActiveTrip.tsx';
+import { FleetEarnings } from '../components/FleetEarnings.tsx';
 
 import { InputMarketplaceView } from '../components/InputMarketplaceView.tsx';
+import { BusinessAgentHub } from '../components/BusinessAgentHub.tsx';
 import { AdminPortal } from '../components/AdminPortal.tsx';
 import { SalvageExchange } from '../components/SalvageExchange.tsx';
 import { AgrilinkInnovationPillars } from '../components/AgrilinkInnovationPillars.tsx';
@@ -84,6 +89,12 @@ export const AppRouter: React.FC<AppRouterProps> = ({
       <Route path="/register" element={<EthioDirectRegistration />} />
       <Route path="/salvage" element={<SalvageExchange />} />
       <Route path="/innovation" element={<AgrilinkInnovationPillars />} />
+      <Route path="/agent" element={<Navigate to="/agent/dashboard" replace />} />
+      <Route path="/agent/dashboard" element={<BusinessAgentHub onAddToCart={onAddToCart} />} />
+      <Route path="/agent/seeds" element={<BusinessAgentHub initialTab="seeds" onAddToCart={onAddToCart} />} />
+      <Route path="/agent/supplies" element={<BusinessAgentHub initialTab="supplies" onAddToCart={onAddToCart} />} />
+      <Route path="/agent/orders" element={<BusinessAgentHub initialTab="orders" onAddToCart={onAddToCart} />} />
+      <Route path="/agent/calculator" element={<BusinessAgentHub initialTab="calculator" onAddToCart={onAddToCart} />} />
 
       {/* ── 2. Authenticated Dashboard Shell ────────────────────────── */}
       <Route element={<AuthGuard />}>
@@ -134,10 +145,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
                 />
               }
             />
-            <Route
-              path="/buyer/requests"
-              element={<BusinessProcurement currentUser={currentUser} />}
-            />
+            <Route path="/buyer/requests" element={<BuyRequestsPage />} />
             <Route path="/buyer/orders" element={<BuyerOrders />} />
             <Route path="/buyer/escrow" element={<BuyerEscrowManager />} />
           </Route>
@@ -148,27 +156,37 @@ export const AppRouter: React.FC<AppRouterProps> = ({
           >
             <Route path="/logistics" element={<Navigate to="/logistics/dashboard" replace />} />
             <Route path="/logistics/dashboard" element={<LogisticsDashboard />} />
-            <Route
-              path="/logistics/loadboard"
-              element={<LogisticsHubPortal currentUser={currentUser} />}
-            />
-            <Route
-              path="/logistics/trip"
-              element={<LogisticsHubPortal currentUser={currentUser} />}
-            />
-            <Route path="/logistics/earnings" element={<LogisticsDashboard />} />
+            <Route path="/logistics/loadboard" element={<LoadBoard />} />
+            <Route path="/logistics/trip" element={<ActiveTrip />} />
+            <Route path="/logistics/earnings" element={<FleetEarnings />} />
           </Route>
 
-          {/* INPUT SUPPLIER WORKSPACE (Role-Isolated for INPUT_SUPPLIER) */}
-          <Route element={<RoleGuard allowedRoles={['INPUT_SUPPLIER']} />}>
+          {/* BUSINESS AGENT / INPUT SUPPLIER WORKSPACE (Role-Isolated for INPUT_SUPPLIER & BUSINESS_AGENT) */}
+          <Route element={<RoleGuard allowedRoles={['INPUT_SUPPLIER', 'BUSINESS_AGENT']} />}>
             <Route path="/supplier" element={<Navigate to="/supplier/dashboard" replace />} />
             <Route
               path="/supplier/dashboard"
-              element={<InputMarketplaceView onAddToCart={onAddToCart} />}
+              element={<BusinessAgentHub onAddToCart={onAddToCart} />}
             />
             <Route
               path="/supplier/products"
-              element={<InputMarketplaceView onAddToCart={onAddToCart} />}
+              element={<BusinessAgentHub onAddToCart={onAddToCart} />}
+            />
+            <Route
+              path="/supplier/seeds"
+              element={<BusinessAgentHub initialTab="seeds" onAddToCart={onAddToCart} />}
+            />
+            <Route
+              path="/supplier/supplies"
+              element={<BusinessAgentHub initialTab="supplies" onAddToCart={onAddToCart} />}
+            />
+            <Route
+              path="/supplier/orders"
+              element={<BusinessAgentHub initialTab="orders" onAddToCart={onAddToCart} />}
+            />
+            <Route
+              path="/supplier/calculator"
+              element={<BusinessAgentHub initialTab="calculator" onAddToCart={onAddToCart} />}
             />
           </Route>
 

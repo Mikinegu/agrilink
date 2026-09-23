@@ -13,7 +13,7 @@ export const DashboardLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handlePersonaSwitch = async (userId: number) => {
+  const handlePersonaSwitch = async (userId: number | string) => {
     const user = await switchPersona(userId);
     if (user) {
       navigate(getRoleDashboardPath(user.role));
@@ -24,7 +24,11 @@ export const DashboardLayout: React.FC = () => {
   const roleMeta = ROLE_LABELS[role] || { title: role, color: 'text-zinc-700', bg: 'bg-zinc-100 border-zinc-200' };
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 font-sans text-zinc-900">
+    <div className={`flex min-h-screen font-sans text-zinc-900 ${
+      role === 'FARMER'
+        ? 'bg-gradient-to-br from-emerald-50/40 via-stone-50 to-amber-50/20'
+        : 'bg-zinc-50'
+    }`}>
       {/* Dynamic Role-Isolated Sidebar */}
       <DynamicSidebar />
 
@@ -63,25 +67,53 @@ export const DashboardLayout: React.FC = () => {
                 </span>
                 <button
                   onClick={() => handlePersonaSwitch(1)}
-                  className="px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer text-zinc-600 hover:text-zinc-950 hover:bg-white"
+                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                    role === 'FARMER' ? 'bg-emerald-600 text-white shadow-xs' : 'text-zinc-600 hover:text-zinc-950 hover:bg-white'
+                  }`}
                 >
                   {t.roles.FARMER}
                 </button>
                 <button
                   onClick={() => handlePersonaSwitch(6)}
-                  className="px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer text-zinc-600 hover:text-zinc-950 hover:bg-white"
+                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                    role === 'BUYER' || role === 'BUSINESS_BUYER' ? 'bg-blue-600 text-white shadow-xs' : 'text-zinc-600 hover:text-zinc-950 hover:bg-white'
+                  }`}
                 >
                   {t.roles.BUYER}
                 </button>
                 <button
                   onClick={() => handlePersonaSwitch(8)}
-                  className="px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer text-zinc-600 hover:text-zinc-950 hover:bg-white"
+                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                    role === 'DRIVER' || role === 'LOGISTICS_ADMIN' ? 'bg-amber-600 text-white shadow-xs' : 'text-zinc-600 hover:text-zinc-950 hover:bg-white'
+                  }`}
                 >
                   {t.nav.logistics}
                 </button>
                 <button
+                  onClick={() => handlePersonaSwitch('INPUT_SUPPLIER')}
+                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                    role === 'INPUT_SUPPLIER' || (role as string) === 'BUSINESS_AGENT'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-white'
+                  }`}
+                >
+                  Business Agent
+                </button>
+                <button
+                  onClick={() => handlePersonaSwitch('FINANCIAL_INSTITUTION')}
+                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                    role === 'FINANCIAL_INSTITUTION'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-white'
+                  }`}
+                >
+                  Bank / Finance
+                </button>
+                <button
                   onClick={() => handlePersonaSwitch(10)}
-                  className="px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer bg-rose-600 text-white shadow-xs scale-102"
+                  className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                    role === 'PLATFORM_ADMIN' ? 'bg-rose-600 text-white shadow-xs' : 'text-zinc-600 hover:text-zinc-950 hover:bg-white'
+                  }`}
                 >
                   {t.nav.admin}
                 </button>

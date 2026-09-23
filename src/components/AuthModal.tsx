@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   UserRole,
 } from '../types/index.ts';
@@ -186,56 +186,66 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       id: 1,
       name: 'Alemu Bekele',
       role: 'FARMER',
-      title: 'Farmer & Cooperative Lead',
+      title: 'Producer / Farmer',
       email: 'alemu.farmer@agrilink.et',
       org: 'Wonji Smallholder Union',
       region: 'Oromia',
       icon: Sprout,
       color: 'emerald',
+      emoji: '🌾',
+      desc: 'List and sell your harvest directly to verified buyers at fair prices.',
     },
     {
       id: 2,
       name: 'Sara Mengistu',
       role: 'BUSINESS_BUYER',
-      title: 'Corporate Offtaker & Processor',
+      title: 'Commercial Buyer',
       email: 'sara.buyer@agrilink.et',
       org: 'Meki Batu Agro-Processing',
       region: 'Addis Ababa',
       icon: Building2,
       color: 'blue',
-    },
-    {
-      id: 3,
-      name: 'Kassahun Tadesse',
-      role: 'INPUT_SUPPLIER',
-      title: 'Certified Input Supplier',
-      email: 'kassahun.inputs@agrilink.et',
-      org: 'Ethio-Agro Inputs Corp',
-      region: 'Oromia',
-      icon: Boxes,
-      color: 'amber',
+      emoji: '🏢',
+      desc: 'Hotel, supermarket, processor or exporter seeking graded bulk produce.',
     },
     {
       id: 4,
       name: 'Yonas Haile',
       role: 'DRIVER',
-      title: 'Fleet Logistics Driver',
+      title: 'Fleet & Logistics Operator',
       email: 'yonas.driver@agrilink.et',
       org: 'Ethio-Trans Logistics',
       region: 'Oromia',
       icon: Smartphone,
       color: 'purple',
+      emoji: '🚚',
+      desc: 'Operate trucks or cold-chain vehicles for verified agricultural freight.',
+    },
+    {
+      id: 3,
+      name: 'Kassahun Tadesse',
+      role: 'INPUT_SUPPLIER',
+      title: 'Agro-Input & Seed Supplier',
+      email: 'kassahun.inputs@agrilink.et',
+      org: 'Ethio-Agro Inputs Corp',
+      region: 'Oromia',
+      icon: Boxes,
+      color: 'amber',
+      emoji: '🧪',
+      desc: 'Distribute certified seeds, fertilizers, and modern farming equipment.',
     },
     {
       id: 5,
       name: 'Tigist Hailu',
       role: 'FINANCIAL_INSTITUTION',
-      title: 'Credit Underwriter Officer',
+      title: 'Financial Institution / Bank',
       email: 'tigist.finance@agrilink.et',
       org: 'Cooperative Bank of Oromia',
       region: 'Oromia',
       icon: TrendingUp,
       color: 'emerald',
+      emoji: '🏛️',
+      desc: 'Provide agricultural credit, loan underwriting, and escrow services.',
     },
     {
       id: 6,
@@ -247,6 +257,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       region: 'Addis Ababa',
       icon: ShieldCheck,
       color: 'zinc',
+      emoji: '🛡️',
+      desc: 'Platform governance, dispute adjudication, and national escrow supervision.',
     },
   ];
 
@@ -578,21 +590,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         onSelectExistingUser(persona.id);
                         onClose();
                       }}
-                      className="p-3 rounded-2xl border border-zinc-200 hover:border-emerald-600 hover:bg-emerald-50/40 transition-all text-left flex items-center gap-3 cursor-pointer group bg-white shadow-2xs"
+                      className="p-3 rounded-2xl border border-zinc-200 hover:border-emerald-600 hover:bg-emerald-50/40 transition-all text-left flex items-start gap-3 cursor-pointer group bg-white shadow-2xs"
                     >
-                      <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-800 group-hover:bg-emerald-700 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
-                        <Icon className="h-4 w-4" />
+                      <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-800 group-hover:bg-emerald-700 group-hover:text-white flex items-center justify-center shrink-0 transition-colors mt-0.5 text-base">
+                        <span>{persona.emoji}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-1">
                           <h4 className="text-xs font-bold text-zinc-900 truncate">
-                            {persona.name}
+                            {persona.title}
                           </h4>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 font-semibold uppercase">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 font-semibold uppercase shrink-0">
                             {persona.role.replace(/_/g, ' ')}
                           </span>
                         </div>
-                        <p className="text-[11px] text-zinc-500 truncate">{persona.org}</p>
+                        <p className="text-[11px] font-medium text-zinc-700 truncate">{persona.name} • {persona.org}</p>
+                        <p className="text-[10px] text-zinc-400 line-clamp-1 mt-0.5">{persona.desc}</p>
                       </div>
                     </button>
                   );

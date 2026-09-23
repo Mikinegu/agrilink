@@ -12,9 +12,11 @@ import {
   User as UserIcon,
   AlertCircle,
   MessageSquare,
+  Sprout,
 } from 'lucide-react';
 import { CartItem } from '../types/index.ts';
 import { EthiopianPaymentModal } from './EthiopianPaymentModal.tsx';
+import { AcceptedPaymentRailsRow } from './PaymentLogos.tsx';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 
@@ -52,7 +54,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const activeUser = currentUser || authUser;
 
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
-  const [deliveryModel, setDeliveryModel] = useState<'DIRECT' | 'HUB_CROSS_DOCK'>('DIRECT');
+  const [deliveryModel, setDeliveryModel] = useState<'FARM_GATE_PICKUP' | 'DIRECT' | 'HUB_CROSS_DOCK'>('FARM_GATE_PICKUP');
+
+  // Direct Farmer Purchase: 0 ETB Logistics
+  const isDirectFarmerPickup = deliveryModel === 'FARM_GATE_PICKUP';
+  const effectiveDeliveryFee = isDirectFarmerPickup ? 0 : deliveryFeeEtb;
+  const effectiveGrandTotal = subtotalEtb + serviceFeeEtb + effectiveDeliveryFee;
 
   // Ethiopian KYC & Delivery Fields
   const [deliveryAddress, setDeliveryAddress] = useState(activeUser?.address || '');
@@ -284,19 +291,85 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                 {/* Logistics Model */}
                 <div>
-                  <label className="text-xs font-bold text-zinc-900 block mb-2">Logistics Model</label>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button type="button" onClick={() => setDeliveryModel('DIRECT')}
-                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${deliveryModel === 'DIRECT' ? 'border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-600' : 'border-zinc-200 bg-white hover:bg-zinc-50'}`}>
-                      <Truck className="h-4 w-4 mb-1 text-emerald-700" />
-                      <span className="text-xs block font-bold text-zinc-900">{t.modalsAndCheckout.deliveryModelDirectTitle}</span>
-                      <span className="text-[10px] text-zinc-500">{t.modalsAndCheckout.deliveryModelDirectDesc}</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold text-zinc-900 block">Fulfillment & Logistics Model</label>
+                    {isDirectFarmerPickup && (
+                      <span className="text-2xs font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">
+                        ✓ 0 ETB Logistics (Zero Freight)
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Option 1: Buy Direct from Farmer (0 ETB) */}
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryModel('FARM_GATE_PICKUP')}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative ${
+                        deliveryModel === 'FARM_GATE_PICKUP'
+                          ? 'border-emerald-600 bg-emerald-50/90 ring-2 ring-emerald-500/30'
+                          : 'border-zinc-200 bg-white hover:bg-zinc-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <Sprout className="h-4 w-4 text-emerald-700" />
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-600 text-white">
+                          0 ETB FREE
+                        </span>
+                      </div>
+                      <span className="text-xs block font-black text-zinc-900 leading-tight">
+                        Direct from Farmer
+                      </span>
+                      <span className="text-[10px] text-zinc-500 block mt-0.5">
+                        Farm-gate pickup. Buyer does not pay logistics fee.
+                      </span>
                     </button>
-                    <button type="button" onClick={() => setDeliveryModel('HUB_CROSS_DOCK')}
-                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${deliveryModel === 'HUB_CROSS_DOCK' ? 'border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-600' : 'border-zinc-200 bg-white hover:bg-zinc-50'}`}>
-                      <Building2 className="h-4 w-4 mb-1 text-emerald-700" />
-                      <span className="text-xs block font-bold text-zinc-900">{t.modalsAndCheckout.deliveryModelHubTitle}</span>
-                      <span className="text-[10px] text-zinc-500">{t.modalsAndCheckout.deliveryModelHubDesc}</span>
+
+                    {/* Option 2: AgriLink Direct Freight Dispatch */}
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryModel('DIRECT')}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        deliveryModel === 'DIRECT'
+                          ? 'border-emerald-600 bg-emerald-50/90 ring-2 ring-emerald-500/30'
+                          : 'border-zinc-200 bg-white hover:bg-zinc-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <Truck className="h-4 w-4 text-emerald-700" />
+                        <span className="text-[10px] font-bold text-zinc-600">
+                          {deliveryFeeEtb.toLocaleString()} ETB
+                        </span>
+                      </div>
+                      <span className="text-xs block font-bold text-zinc-900 leading-tight">
+                        {t.modalsAndCheckout.deliveryModelDirectTitle}
+                      </span>
+                      <span className="text-[10px] text-zinc-500 block mt-0.5">
+                        {t.modalsAndCheckout.deliveryModelDirectDesc}
+                      </span>
+                    </button>
+
+                    {/* Option 3: Hub Cross-Dock */}
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryModel('HUB_CROSS_DOCK')}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        deliveryModel === 'HUB_CROSS_DOCK'
+                          ? 'border-emerald-600 bg-emerald-50/90 ring-2 ring-emerald-500/30'
+                          : 'border-zinc-200 bg-white hover:bg-zinc-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <Building2 className="h-4 w-4 text-emerald-700" />
+                        <span className="text-[10px] font-bold text-zinc-600">
+                          {deliveryFeeEtb.toLocaleString()} ETB
+                        </span>
+                      </div>
+                      <span className="text-xs block font-bold text-zinc-900 leading-tight">
+                        {t.modalsAndCheckout.deliveryModelHubTitle}
+                      </span>
+                      <span className="text-[10px] text-zinc-500 block mt-0.5">
+                        {t.modalsAndCheckout.deliveryModelHubDesc}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -304,8 +377,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* Notes */}
                 <div>
                   <label className="text-[11px] font-semibold text-zinc-600 block mb-1">{t.modalsAndCheckout.orderNotesLabel}</label>
-                  <textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} rows={2} placeholder="Ripeness preference, gate instructions, etc."
+                  <textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} rows={2} placeholder="Ripeness preference, farm-gate pickup vehicle plate, etc."
                     className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-600 resize-none" />
+                </div>
+
+                {/* Accepted Ethiopian Payment Rails */}
+                <div className="pt-2 border-t border-zinc-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-zinc-700 flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                      Accepted Escrow Channels:
+                    </span>
+                    <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Zero Transfer Fee
+                    </span>
+                  </div>
+                  <AcceptedPaymentRailsRow compact={true} />
                 </div>
               </form>
             )}
@@ -335,7 +422,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 text-xs space-y-2">
                   <div className="flex justify-between"><span className="text-zinc-500">Total Paid:</span><span className="font-extrabold text-zinc-900">{Number(completedOrder.grandTotalEtb).toLocaleString()} {t.common.currency}</span></div>
                   <div className="flex justify-between"><span className="text-zinc-500">Delivery To:</span><span className="font-semibold text-zinc-800">{completedOrder.deliveryAddress}</span></div>
-                  <div className="flex justify-between"><span className="text-zinc-500">Logistics:</span><span className="font-bold text-emerald-700">{t.buyerWorkspace.statusInTransit}</span></div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Logistics Model:</span>
+                    <span className="font-bold text-emerald-700">
+                      {deliveryModel === 'FARM_GATE_PICKUP' ? 'Direct Farm-Gate Pickup (0 ETB Fee)' : t.buyerWorkspace.statusInTransit}
+                    </span>
+                  </div>
                 </div>
 
                 <button onClick={() => { setStep('cart'); onClose(); }} className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs cursor-pointer shadow-md">
@@ -352,15 +444,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="flex justify-between">
                   <span>Subtotal</span><span className="font-bold text-zinc-900">{subtotalEtb.toLocaleString()} {t.common.currency}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Logistics</span>
-                  <span className="font-bold text-zinc-900">{deliveryFeeEtb === 0 ? <span className="text-emerald-700">Free</span> : `${deliveryFeeEtb.toLocaleString()} ${t.common.currency}`}</span>
+                <div className="flex justify-between items-center">
+                  <span>Logistics & Freight</span>
+                  <span className="font-bold text-zinc-900">
+                    {effectiveDeliveryFee === 0 ? (
+                      <span className="text-emerald-700 font-extrabold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        <CheckCircle2 className="h-3 w-3" /> 0 ETB (Free - Direct from Farmer)
+                      </span>
+                    ) : (
+                      `${effectiveDeliveryFee.toLocaleString()} ${t.common.currency}`
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Platform Fee (2%)</span><span className="font-bold text-zinc-900">{serviceFeeEtb.toLocaleString()} {t.common.currency}</span>
                 </div>
                 <div className="pt-2 border-t border-zinc-200 flex justify-between text-sm font-black text-emerald-950">
-                  <span>Total</span><span>{grandTotalEtb.toLocaleString()} {t.common.currency}</span>
+                  <span>Total</span><span>{effectiveGrandTotal.toLocaleString()} {t.common.currency}</span>
                 </div>
               </div>
 
@@ -398,15 +498,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         </div>
       </div>
 
-      {/* Ethiopian Payment Modal � rendered outside the drawer */}
+      {/* Ethiopian Payment Modal rendered outside the drawer */}
       <EthiopianPaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        amountEtb={grandTotalEtb}
-        orderDescription={`${cartItems.length} item${cartItems.length !== 1 ? 's' : ''} � AgriLink Order`}
+        amountEtb={effectiveGrandTotal}
+        orderDescription={`${cartItems.length} item${cartItems.length !== 1 ? 's' : ''} • AgriLink ${isDirectFarmerPickup ? '(Direct Farmer - 0 ETB Logistics)' : 'Order'}`}
         contactName={contactName}
         contactPhone={contactPhone}
         onPaymentSuccess={handlePaymentSuccess}
+        isDirectFarmerPickup={isDirectFarmerPickup}
+        deliveryFeeEtb={effectiveDeliveryFee}
       />
     </>
   );

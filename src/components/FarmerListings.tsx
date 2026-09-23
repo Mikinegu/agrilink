@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../context/AuthContext.tsx';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { Product, ProductCategory } from '../types/index.ts';
+import { matchProduceVisual } from '../utils/aiProduceImageMatcher.ts';
 
 export const FarmerListings: React.FC = () => {
   const { currentUser } = useAuth();
@@ -44,6 +45,7 @@ export const FarmerListings: React.FC = () => {
     farmLocation: currentUser?.region || 'Oromia',
     isOrganic: false,
   });
+  const [selectedAiPhoto, setSelectedAiPhoto] = useState<string>('https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=800&q=80');
 
   // Inline Edit State
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -106,6 +108,8 @@ export const FarmerListings: React.FC = () => {
           farmLocation: newProd.farmLocation,
           region: currentUser?.region || 'Oromia',
           isOrganic: newProd.isOrganic,
+          images: [selectedAiPhoto],
+          imageUrl: selectedAiPhoto,
         }),
       });
 
@@ -378,16 +382,106 @@ export const FarmerListings: React.FC = () => {
 
             <form onSubmit={handleCreateListing} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">{t.farmerWorkspace.cropNameLabel} *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-zinc-700">{t.farmerWorkspace.cropNameLabel} *</label>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-emerald-600 animate-pulse" />
+                    AI Auto-Photo Matcher Active
+                  </span>
+                </div>
                 <input
                   type="text"
                   required
                   placeholder={t.farmerWorkspace.cropNamePlaceholder}
                   value={newProd.name}
-                  onChange={(e) => setNewProd({ ...newProd, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewProd({ ...newProd, name: val });
+                    if (val.trim().length > 1) {
+                      const match = matchProduceVisual(val);
+                      if (match.images.length > 0) {
+                        setSelectedAiPhoto(match.images[0].url);
+                      }
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
                 />
               </div>
+
+              {/* AI Produce Vision & Image Picker Card */}
+              {(() => {
+                const query = newProd.name || 'White Teff';
+                const match = matchProduceVisual(query);
+                return (
+                  <div className="p-3.5 rounded-2xl bg-zinc-900 text-white space-y-3 shadow-md border border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950 font-black text-[10px]">
+                          AI VISION MATCH: {match.confidenceScore}%
+                        </span>
+                        <span className="text-xs font-bold text-white line-clamp-1">{match.nameEn}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewProd({
+                            ...newProd,
+                            name: match.nameEn,
+                            categoryId: String(match.categoryId),
+                            variety: match.variety,
+                            grade: match.defaultGrade,
+                            pricePerUnitEtb: String(match.benchmarkPriceEtb),
+                            unit: match.standardUnit,
+                            description: match.description,
+                          });
+                          if (match.images.length > 0) {
+                            setSelectedAiPhoto(match.images[0].url);
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-[10px] cursor-pointer transition-colors"
+                      >
+                        ✨ Auto-Fill Details
+                      </button>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-amber-300 font-semibold block mb-1.5">
+                        Select Verified Authentic Photo (Auto-uploaded by AI for all crops):
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {match.images.map((img, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => setSelectedAiPhoto(img.url)}
+                            className={`relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${
+                              selectedAiPhoto === img.url
+                                ? 'border-amber-400 ring-2 ring-amber-400/50 scale-102'
+                                : 'border-zinc-700 opacity-60 hover:opacity-100'
+                            }`}
+                          >
+                            <img src={img.url} alt={img.caption} className="h-16 w-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-1">
+                              <span className="text-[8px] text-white font-medium line-clamp-1">
+                                {img.caption}
+                              </span>
+                            </div>
+                            {selectedAiPhoto === img.url && (
+                              <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-amber-400 text-zinc-950 flex items-center justify-center font-bold text-[9px]">
+                                <Check className="h-2.5 w-2.5 stroke-[3]" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800 pt-2">
+                      <span>ECX Benchmark: <strong className="text-emerald-400">{match.benchmarkPriceEtb.toLocaleString()} ETB/{match.standardUnit}</strong></span>
+                      <span>Grade: <strong className="text-zinc-200">{match.gradeLabel}</strong></span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

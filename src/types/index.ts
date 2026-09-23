@@ -3,6 +3,7 @@ export type UserRole =
   | 'BUYER'
   | 'BUSINESS_BUYER'
   | 'INPUT_SUPPLIER'
+  | 'BUSINESS_AGENT'
   | 'DRIVER'
   | 'LOGISTICS_ADMIN'
   | 'FINANCIAL_INSTITUTION'
@@ -440,6 +441,49 @@ export interface Driver {
   isVerified: boolean;
 }
 
+export interface PartnerBankOffer {
+  bankId: string;
+  bankName: string;
+  productName: string;
+  badge: string;
+  interestRatePercent: number;
+  maxLoanAmountEtb: number;
+  tenorMonths: number;
+  collateralRequired: boolean;
+  disbursementSpeed: string;
+  repaymentModel: string;
+  colorScheme: {
+    bg: string;
+    border: string;
+    text: string;
+    badgeBg: string;
+    accent: string;
+  };
+}
+
+export interface FaydaFinVerification {
+  finNumber: string;
+  fullName: string;
+  amharicName?: string;
+  photoUrl: string;
+  dateOfBirth?: string;
+  gender?: string;
+  region: string;
+  zone: string;
+  woreda: string;
+  kebele: string;
+  phoneLinked: string;
+  landUseCertificateNumber: string;
+  farmlandSizeHectares: number;
+  primaryCrop: string;
+  biometricVerificationStatus: 'VERIFIED' | 'PENDING' | 'FAILED';
+  verificationTimestamp: string;
+  creditScore: number;
+  creditTier: 'TIER_1_PRIME' | 'TIER_2_STANDARD' | 'TIER_3_STARTER';
+  maxCreditLimitEtb: number;
+  eligibleBanks: PartnerBankOffer[];
+}
+
 export interface FinanceApplication {
   id: number;
   farmerId: number;
@@ -457,7 +501,14 @@ export interface FinanceApplication {
   interestRatePercent?: number | null;
   reviewNotes?: string | null;
   farmerName?: string;
+  farmerPhone?: string;
+  farmerRating?: number | null;
   farmName?: string;
+  finNumber?: string | null;
+  bankId?: string | null;
+  bankName?: string | null;
+  disbursementMethod?: string | null;
+  loanAgreementRef?: string | null;
   createdAt: string;
 }
 

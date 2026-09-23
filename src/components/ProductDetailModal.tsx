@@ -72,7 +72,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   // Direct Pay Section State
   const [isDirectPayMode, setIsDirectPayMode] = useState(initialDirectPay);
-  const [deliveryModel, setDeliveryModel] = useState<'DIRECT' | 'HUB_CROSS_DOCK'>('HUB_CROSS_DOCK');
+  const [deliveryModel, setDeliveryModel] = useState<'FARM_GATE_PICKUP' | 'DIRECT' | 'HUB_CROSS_DOCK'>('FARM_GATE_PICKUP');
   const [deliveryAddress, setDeliveryAddress] = useState('Addis Ababa Central Wholesale Terminal, Bole Sub-City');
   const [contactName, setContactName] = useState(currentUser?.fullName || 'Direct Procurement Buyer');
   const [contactPhone, setContactPhone] = useState(currentUser?.phone || '0961123330');
@@ -99,7 +99,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const effectiveQty = Math.max(product.minOrderQuantity || 1, quantity);
   const itemSubtotal = effectiveQty * product.pricePerUnitEtb;
-  const deliveryFee = itemSubtotal > 20000 ? 0 : 2500;
+  const isDirectFarmerPickup = deliveryModel === 'FARM_GATE_PICKUP';
+  const deliveryFee = isDirectFarmerPickup ? 0 : (itemSubtotal > 20000 ? 0 : 2500);
   const serviceFeeEtb = Math.round(itemSubtotal * 0.02);
   const grandTotalEtb = itemSubtotal + deliveryFee + serviceFeeEtb;
 
@@ -342,19 +343,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
                   {/* Multimodal Logistics Selector */}
                   <div className="p-4 rounded-2xl bg-white border border-zinc-200 space-y-2">
-                    <span className="text-xs font-bold text-zinc-700 block">Multimodal Fulfillment Route</span>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-700 block">Multimodal Fulfillment Route</span>
+                      {isDirectFarmerPickup && (
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          ✓ 0 ETB Logistics (Zero Freight)
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <button
                         type="button"
-                        onClick={() => setDeliveryModel('HUB_CROSS_DOCK')}
+                        onClick={() => setDeliveryModel('FARM_GATE_PICKUP')}
                         className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                          deliveryModel === 'HUB_CROSS_DOCK'
-                            ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold'
+                          deliveryModel === 'FARM_GATE_PICKUP'
+                            ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold ring-2 ring-emerald-500/30'
                             : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'
                         }`}
                       >
-                        <span className="text-xs block">Hub Cross-Dock</span>
-                        <span className="text-[10px] text-zinc-500 font-normal">Cold-chain terminal inspection</span>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs block font-bold">Direct Farmer Pickup</span>
+                          <span className="text-[9px] font-black px-1 rounded bg-emerald-600 text-white">0 ETB</span>
+                        </div>
+                        <span className="text-[10px] text-zinc-500 font-normal">Farm-gate self-collection. Free logistics.</span>
                       </button>
 
                       <button
@@ -362,12 +373,25 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         onClick={() => setDeliveryModel('DIRECT')}
                         className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                           deliveryModel === 'DIRECT'
-                            ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold'
+                            ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold ring-2 ring-emerald-500/30'
                             : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'
                         }`}
                       >
-                        <span className="text-xs block">Direct Farm Dispatch</span>
-                        <span className="text-[10px] text-zinc-500 font-normal">Direct freight to door</span>
+                        <span className="text-xs block font-bold">Direct Farm Dispatch</span>
+                        <span className="text-[10px] text-zinc-500 font-normal">Carrier freight truck to your door</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryModel('HUB_CROSS_DOCK')}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                          deliveryModel === 'HUB_CROSS_DOCK'
+                            ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold ring-2 ring-emerald-500/30'
+                            : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'
+                        }`}
+                      >
+                        <span className="text-xs block font-bold">Hub Cross-Dock</span>
+                        <span className="text-[10px] text-zinc-500 font-normal">Cold-chain terminal inspection</span>
                       </button>
                     </div>
                   </div>
@@ -421,7 +445,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
                     <div className="flex items-center justify-between text-xs text-emerald-200">
                       <span>Freight & Logistics</span>
-                      <span className="font-mono text-emerald-100">{deliveryFee === 0 ? 'FREE' : `${deliveryFee.toLocaleString()} ETB`}</span>
+                      <span className="font-mono text-emerald-100 font-bold">
+                        {deliveryFee === 0 ? (
+                          <span className="text-amber-300 font-extrabold bg-emerald-900/80 px-2 py-0.5 rounded border border-emerald-700">
+                            0 ETB (FREE Direct Farm Pickup)
+                          </span>
+                        ) : (
+                          `${deliveryFee.toLocaleString()} ETB`
+                        )}
+                      </span>
                     </div>
 
                     <div className="flex items-center justify-between text-sm font-black pt-2 border-t border-emerald-800">
@@ -728,6 +760,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           contactName={contactName}
           contactPhone={contactPhone}
           onPaymentSuccess={handlePaymentModalSuccess}
+          isDirectFarmerPickup={isDirectFarmerPickup}
+          deliveryFeeEtb={deliveryFee}
         />
       )}
     </>

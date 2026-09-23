@@ -16,10 +16,12 @@ import {
   UserCheck,
   AlertCircle,
   HelpCircle,
+  ArrowRight,
 } from 'lucide-react';
 import { FinanceApplication, User } from '../types/index.ts';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { useNavigate } from 'react-router-dom';
+import { FaydaFinBankModal } from './FaydaFinBankModal.tsx';
 
 interface FinancePortalProps {
   currentUser: User | null;
@@ -43,6 +45,7 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
   const [customNotes, setCustomNotes] = useState('');
   const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [showFaydaModal, setShowFaydaModal] = useState(false);
 
   // Application Form State
   const [loanType, setLoanType] = useState('INPUT_FINANCING');
@@ -200,6 +203,55 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
         </div>
       </div>
 
+      {/* Fayda National ID (FIN) Collaborative Bank Credit Banner */}
+      <div className="mb-6 p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-950 via-zinc-950 to-teal-950 text-white border border-emerald-600/40 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
+        <div className="h-1.5 w-full absolute top-0 left-0 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500" />
+        
+        <div className="space-y-1.5 max-w-2xl">
+          <div className="flex items-center gap-2">
+            <span className="text-2xs font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🇪🇹</span> Ethiopian National ID (Fayda / FIN) Bank Lending
+            </span>
+            <span className="text-2xs font-bold text-amber-300">
+              Commercial Bank of Ethiopia • Coop Bank • Awash • Dashen
+            </span>
+          </div>
+
+          <h2 className="text-lg sm:text-xl font-black text-white">
+            {isFarmer
+              ? 'Instant Bank Lending via Fayda National ID (FIN)'
+              : 'NBE-Compliant Fayda National ID Underwriting Active'}
+          </h2>
+          <p className="text-xs text-emerald-100/80 leading-relaxed">
+            {isFarmer
+              ? 'Enter or link your unique 12-digit Fayda FIN to unlock up to 450,000 ETB in instant, collateral-free credit lines from partner banks. Zero physical paperwork required.'
+              : 'Smallholder loan applicants are cross-referenced against the Ethiopian National ID Program (NIDP) biometric database and Ministry of Agriculture land holding records.'}
+          </p>
+
+          {currentUser?.nationalIdNumber && isFarmer && (
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-2xs font-extrabold px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 font-mono">
+                FIN Linked: {currentUser.nationalIdNumber}
+              </span>
+              <span className="text-2xs text-emerald-300 font-semibold">
+                ✓ Pre-Approved for 450,000 ETB Bank Credit
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setShowFaydaModal(true)}
+            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 font-black text-xs cursor-pointer transition-all shadow-lg flex items-center justify-center gap-2 group"
+          >
+            <Landmark className="h-4 w-4 text-zinc-950" />
+            <span>{isFarmer ? (currentUser?.nationalIdNumber ? 'Get Instant Bank Loan' : 'Link FIN & Get Bank Loan') : 'Open FIN e-KYC Simulator'}</span>
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+      </div>
+
       {/* AVPS Alternative Credit Scoring Banner */}
       <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-zinc-950 via-zinc-900 to-amber-950 text-white border border-amber-500/40 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -322,11 +374,16 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
                 {/* Top Row: Applicant, Type & Amount */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-bold text-sm text-zinc-900">{loan.farmerName || 'Bekele Tadesse'}</h4>
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-900">
                         {loan.loanType.replace(/_/g, ' ')}
                       </span>
+                      {((loan as any).nationalIdNumber || (loan as any).finNumber) && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                          <span>🇪🇹</span> FIN: {(loan as any).nationalIdNumber || (loan as any).finNumber} (Fayda Verified)
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-zinc-500 mt-0.5">
                       Farm: <strong className="text-zinc-800">{loan.farmName || 'Wonji Horizon Farm'}</strong>
@@ -649,6 +706,14 @@ export const FinancePortal: React.FC<FinancePortalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Fayda National ID (FIN) Bank Credit & Loan Modal */}
+      <FaydaFinBankModal
+        isOpen={showFaydaModal}
+        onClose={() => setShowFaydaModal(false)}
+        onLoanDisbursed={() => fetchLoans()}
+        initialFin={currentUser?.nationalIdNumber}
+      />
     </div>
   );
 };

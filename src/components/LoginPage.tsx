@@ -1,17 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Sprout,
   ShieldCheck,
-  Lock,
   Phone,
   Mail,
   ArrowRight,
   UserCheck,
   CheckCircle2,
   AlertCircle,
-  Eye,
-  EyeOff,
   Building2,
   Tractor,
   Truck,
@@ -30,10 +27,13 @@ export const LoginPage: React.FC = () => {
   const location = useLocation();
 
   const [identifier, setIdentifier] = useState('');
-  const [pin, setPin] = useState('');
-  const [showPin, setShowPin] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Ensure empty identifier on mount to prevent stale autofill
+  useEffect(() => {
+    setIdentifier('');
+  }, []);
 
   // Email verification helper state
   const [showVerificationHelper, setShowVerificationHelper] = useState(false);
@@ -57,7 +57,7 @@ export const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     const result = await login({
       phoneOrEmail: identifier.trim(),
-      pin: pin.trim() || '123456',
+      pin: '123456',
     });
 
     setIsSubmitting(false);
@@ -130,9 +130,9 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleDemoSwitch = async (userId: number) => {
+  const handleDemoSwitch = async (userIdOrRole: number | string) => {
     setIsSubmitting(true);
-    const user = await switchPersona(userId);
+    const user = await switchPersona(userIdOrRole);
     setIsSubmitting(false);
     if (user) {
       const destination = from || getRoleDashboardPath(user.role);
@@ -252,6 +252,34 @@ export const LoginPage: React.FC = () => {
 
               <button
                 type="button"
+                onClick={() => handleDemoSwitch('INPUT_SUPPLIER')}
+                title={t.auth.inputSupplierDesc || 'Distribute certified seeds, fertilizers, and modern farming equipment.'}
+                className="p-2.5 rounded-xl bg-white hover:bg-teal-50 border border-zinc-200 hover:border-teal-300 text-left transition-all cursor-pointer group"
+              >
+                <p className="text-xs font-bold text-zinc-900 group-hover:text-teal-800 flex items-center gap-1 truncate">
+                  <span className="text-xs">🧪</span> {t.auth.inputSupplierTitle || 'Agro-Input & Seed Supplier'}
+                </p>
+                <p className="text-[10px] text-zinc-400 truncate">
+                  {t.auth.inputSupplierDesc || 'Distribute certified seeds, fertilizers, and modern farming equipment.'}
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDemoSwitch('FINANCIAL_INSTITUTION')}
+                title={t.auth.bankFinanceDesc || 'Provide agricultural credit, loan underwriting, and escrow services.'}
+                className="p-2.5 rounded-xl bg-white hover:bg-purple-50 border border-zinc-200 hover:border-purple-300 text-left transition-all cursor-pointer group"
+              >
+                <p className="text-xs font-bold text-zinc-900 group-hover:text-purple-800 flex items-center gap-1 truncate">
+                  <span className="text-xs">🏛️</span> {t.auth.bankFinanceTitle || 'Financial Institution / Bank'}
+                </p>
+                <p className="text-[10px] text-zinc-400 truncate">
+                  {t.auth.bankFinanceDesc || 'Provide agricultural credit, loan underwriting, and escrow services.'}
+                </p>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => handleDemoSwitch(10)}
                 className="p-2.5 rounded-xl bg-white hover:bg-rose-50 border border-zinc-200 hover:border-rose-300 text-left transition-all cursor-pointer group"
               >
@@ -337,45 +365,27 @@ export const LoginPage: React.FC = () => {
           )}
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
             <div>
-              <label className="block text-xs font-bold text-zinc-700 mb-1.5">
+              <label htmlFor="agrilink_phone_or_email" className="block text-xs font-bold text-zinc-700 mb-1.5">
                 {t.auth.phoneOrEmailLabel}
               </label>
               <div className="relative">
                 <input
                   type="text"
+                  id="agrilink_phone_or_email"
+                  name="agrilink_phone_or_email"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder={t.auth.phonePlaceholder}
-                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs transition-all"
+                  className="w-full px-4 py-3.5 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs transition-all"
                 />
               </div>
               <span className="text-[11px] text-zinc-400 mt-1 block">{t.auth.phoneFormatHint}</span>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-zinc-700">{t.auth.pinLabel}</label>
-                <span className="text-[11px] text-zinc-400 font-medium">{t.auth.demoPinHint}</span>
-              </div>
-              <div className="relative">
-                <input
-                  type={showPin ? 'text' : 'password'}
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder={t.auth.pinPlaceholder}
-                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs transition-all pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPin(!showPin)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                >
-                  {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
             </div>
 
             <button

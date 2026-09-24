@@ -1101,10 +1101,74 @@ export const PLATFORM_RECEIVING_ENDPOINTS: PlatformPaymentEndpoint[] = [
 
 // 12. GET /api/payments/endpoints & /api/v1/payments/endpoints - List Official Receiving Accounts
 router.get('/endpoints', async (req: Request, res: Response) => {
+  try {
+    const dbEndpoints = await db.select().from(platformPaymentEndpoints);
+    if (dbEndpoints && dbEndpoints.length > 0) {
+      const mapped = dbEndpoints.map(e => ({
+        id: e.id,
+        rail: e.rail,
+        account_or_merchant_name: e.accountOrMerchantName,
+        account_number: e.accountNumber,
+        branch_or_bank_name: e.branchOrBankName || undefined,
+        instructions_am: e.instructionsAm || undefined,
+        instructions_en: e.instructionsEn || undefined,
+        qr_code_image_url: e.qrCodeImageUrl || undefined,
+        is_active: e.isActive !== false,
+      }));
+      return res.json({
+        success: true,
+        source: 'DATABASE',
+        endpoints: mapped,
+      });
+    }
+  } catch (err: any) {
+    console.warn('[Payments] DB query for payment endpoints fallback:', err.message);
+  }
+
   return res.json({
     success: true,
+    source: 'SEED_FALLBACK',
     endpoints: PLATFORM_RECEIVING_ENDPOINTS,
   });
+});
+
+// 12.1 POST /api/payments/endpoints - Add or Update Receiving Endpoint
+router.post('/endpoints', async (req: Request, res: Response) => {
+  try {
+    const { id, rail, accountOrMerchantName, accountNumber, branchOrBankName, instructionsEn, instructionsAm, qrCodeImageUrl, isActive } = req.body;
+    const endpointId = id || `ep-${rail.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now().toString(36)}`;
+    
+    const inserted = await db.insert(platformPaymentEndpoints).values({
+      id: endpointId,
+      rail: rail || 'TELEBIRR_MANUAL',
+      accountOrMerchantName: accountOrMerchantName || 'AgriLink Technologies PLC',
+      accountNumber: accountNumber || '884920',
+      branchOrBankName: branchOrBankName || null,
+      instructionsEn: instructionsEn || null,
+      instructionsAm: instructionsAm || null,
+      qrCodeImageUrl: qrCodeImageUrl || null,
+      isActive: isActive !== false,
+    }).onConflictDoUpdate({
+      target: platformPaymentEndpoints.id,
+      set: {
+        rail: rail || undefined,
+        accountOrMerchantName: accountOrMerchantName || undefined,
+        accountNumber: accountNumber || undefined,
+        branchOrBankName: branchOrBankName || undefined,
+        instructionsEn: instructionsEn || undefined,
+        instructionsAm: instructionsAm || undefined,
+        isActive: isActive !== undefined ? Boolean(isActive) : undefined,
+      },
+    }).returning();
+
+    return res.json({
+      success: true,
+      message: 'Payment receiving endpoint saved to database.',
+      endpoint: inserted[0] || req.body,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 // 13. GET /api/payments/card/checkout & /api/v1/payments/card/checkout - Visa/Mastercard Gateway

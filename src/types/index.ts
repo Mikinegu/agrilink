@@ -617,5 +617,13 @@ export interface PlatformSettings {
   supportPhone: string;
   supportEmail: string;
   taxRatePercent: number;
+  telebirrPhone?: string;
+  telebirrAccountName?: string;
+  telebirrMerchantCode?: string;
+  aiPaymentMode?: string;
+  aiMinConfidence?: number;
+  aiMaxAutoReleaseEtb?: number;
+  telebirrWebhookSecret?: string;
+  updatedAt?: string;
 }
 

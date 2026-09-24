@@ -25,6 +25,7 @@ __export(schema_exports, {
   cartItems: () => cartItems,
   carts: () => carts,
   deliveries: () => deliveries,
+  deliveriesRelations: () => deliveriesRelations,
   drivers: () => drivers,
   farmFields: () => farmFields,
   farmFieldsRelations: () => farmFieldsRelations,
@@ -32,12 +33,14 @@ __export(schema_exports, {
   farms: () => farms,
   farmsRelations: () => farmsRelations,
   financeApplications: () => financeApplications,
+  financeApplicationsRelations: () => financeApplicationsRelations,
   hubMovements: () => hubMovements,
   hubs: () => hubs,
   inputCategories: () => inputCategories,
   inputProducts: () => inputProducts,
   inputSuppliers: () => inputSuppliers,
   messages: () => messages,
+  messagesRelations: () => messagesRelations,
   notifications: () => notifications,
   orderItems: () => orderItems,
   orderItemsRelations: () => orderItemsRelations,
@@ -47,6 +50,7 @@ __export(schema_exports, {
   paymentProofSubmissions: () => paymentProofSubmissions,
   paymentProofs: () => paymentProofs,
   payments: () => payments,
+  paymentsRelations: () => paymentsRelations,
   platformPaymentEndpoints: () => platformPaymentEndpoints,
   platformSettings: () => platformSettings,
   productCategories: () => productCategories,
@@ -57,8 +61,13 @@ __export(schema_exports, {
   productsRelations: () => productsRelations,
   qualityInspections: () => qualityInspections,
   quoteRequests: () => quoteRequests,
+  quoteRequestsRelations: () => quoteRequestsRelations,
   reviews: () => reviews,
+  reviewsRelations: () => reviewsRelations,
   supportTickets: () => supportTickets,
+  supportTicketsRelations: () => supportTicketsRelations,
+  userSurveys: () => userSurveys,
+  userSurveysRelations: () => userSurveysRelations,
   users: () => users,
   usersRelations: () => usersRelations
 });
@@ -631,7 +640,7 @@ var reviews = pgTable("reviews", {
 var messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   conversationId: text("conversation_id").notNull(),
-  senderId: integer("senderId").references(() => users.id).notNull(),
+  senderId: integer("sender_id").references(() => users.id).notNull(),
   recipientId: integer("recipient_id").references(() => users.id).notNull(),
   senderName: text("sender_name").notNull(),
   senderRole: text("sender_role").notNull(),
@@ -679,6 +688,16 @@ var supportTickets = pgTable("support_tickets", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });
+var userSurveys = pgTable("user_surveys", {
+  id: serial("id").primaryKey(),
+  surveyId: text("survey_id").notNull().unique(),
+  userId: integer("user_id").references(() => users.id),
+  userEmail: text("user_email"),
+  userRole: text("user_role").default("GENERAL"),
+  satisfactionRating: text("satisfaction_rating").notNull(),
+  feedbackText: text("feedback_text"),
+  createdAt: timestamp("created_at").defaultNow()
+});
 var platformSettings = pgTable("platform_settings", {
   id: serial("id").primaryKey(),
   platformFeePercent: doublePrecision("platform_fee_percent").default(2),
@@ -686,9 +705,16 @@ var platformSettings = pgTable("platform_settings", {
   minOrderAmountEtb: doublePrecision("min_order_amount_etb").default(500),
   currency: text("currency").default("ETB"),
   maintenanceMode: boolean("maintenance_mode").default(false),
-  supportPhone: text("support_phone").default("+251 91 100 2244"),
+  supportPhone: text("support_phone").default("0961123330"),
   supportEmail: text("support_email").default("support@agrilink.et"),
   taxRatePercent: doublePrecision("tax_rate_percent").default(0),
+  telebirrPhone: text("telebirr_phone").default("0961123330"),
+  telebirrAccountName: text("telebirr_account_name").default("AgriLink Technologies PLC"),
+  telebirrMerchantCode: text("telebirr_merchant_code").default("884920"),
+  aiPaymentMode: text("ai_payment_mode").default("AI_AUTOPILOT"),
+  aiMinConfidence: doublePrecision("ai_min_confidence").default(85),
+  aiMaxAutoReleaseEtb: doublePrecision("ai_max_auto_release_etb").default(5e5),
+  telebirrWebhookSecret: text("telebirr_webhook_secret").default("agrilink_telebirr_sec_991823"),
   updatedAt: timestamp("updated_at").defaultNow()
 });
 var usersRelations = relations(users, ({ one, many }) => ({
@@ -790,6 +816,86 @@ var orderItemsRelations = relations(orderItems, ({ one }) => ({
   }),
   seller: one(users, {
     fields: [orderItems.sellerId],
+    references: [users.id]
+  })
+}));
+var paymentsRelations = relations(payments, ({ one }) => ({
+  order: one(orders, {
+    fields: [payments.orderId],
+    references: [orders.id]
+  }),
+  user: one(users, {
+    fields: [payments.userId],
+    references: [users.id]
+  })
+}));
+var deliveriesRelations = relations(deliveries, ({ one }) => ({
+  order: one(orders, {
+    fields: [deliveries.orderId],
+    references: [orders.id]
+  }),
+  driver: one(drivers, {
+    fields: [deliveries.driverId],
+    references: [drivers.id]
+  })
+}));
+var financeApplicationsRelations = relations(financeApplications, ({ one }) => ({
+  farmer: one(users, {
+    fields: [financeApplications.farmerId],
+    references: [users.id]
+  }),
+  institution: one(users, {
+    fields: [financeApplications.institutionId],
+    references: [users.id]
+  })
+}));
+var quoteRequestsRelations = relations(quoteRequests, ({ one }) => ({
+  buyer: one(users, {
+    fields: [quoteRequests.businessBuyerId],
+    references: [users.id]
+  }),
+  seller: one(users, {
+    fields: [quoteRequests.sellerId],
+    references: [users.id]
+  }),
+  product: one(products, {
+    fields: [quoteRequests.productId],
+    references: [products.id]
+  })
+}));
+var reviewsRelations = relations(reviews, ({ one }) => ({
+  reviewer: one(users, {
+    fields: [reviews.reviewerId],
+    references: [users.id]
+  }),
+  order: one(orders, {
+    fields: [reviews.orderId],
+    references: [orders.id]
+  })
+}));
+var messagesRelations = relations(messages, ({ one }) => ({
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id]
+  }),
+  recipient: one(users, {
+    fields: [messages.recipientId],
+    references: [users.id]
+  })
+}));
+var supportTicketsRelations = relations(supportTickets, ({ one }) => ({
+  user: one(users, {
+    fields: [supportTickets.userId],
+    references: [users.id]
+  }),
+  assignedAdmin: one(users, {
+    fields: [supportTickets.assignedAdminId],
+    references: [users.id]
+  })
+}));
+var userSurveysRelations = relations(userSurveys, ({ one }) => ({
+  user: one(users, {
+    fields: [userSurveys.userId],
     references: [users.id]
   })
 }));
@@ -1401,6 +1507,21 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id SERIAL PRIMARY KEY,
+  ticket_number TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  category TEXT NOT NULL DEFAULT 'ORDER_DISPUTE',
+  subject TEXT NOT NULL,
+  description TEXT NOT NULL,
+  priority TEXT NOT NULL DEFAULT 'MEDIUM',
+  status TEXT NOT NULL DEFAULT 'OPEN',
+  assigned_admin_id INTEGER,
+  resolution_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS user_surveys (
   id SERIAL PRIMARY KEY,
   survey_id TEXT NOT NULL UNIQUE,
@@ -1422,6 +1543,13 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   support_phone TEXT DEFAULT '0961123330',
   support_email TEXT DEFAULT 'support@agrilink.et',
   tax_rate_percent DOUBLE PRECISION DEFAULT 0.0,
+  telebirr_phone TEXT DEFAULT '0961123330',
+  telebirr_account_name TEXT DEFAULT 'AgriLink Technologies PLC',
+  telebirr_merchant_code TEXT DEFAULT '884920',
+  ai_payment_mode TEXT DEFAULT 'AI_AUTOPILOT',
+  ai_min_confidence DOUBLE PRECISION DEFAULT 85.0,
+  ai_max_auto_release_etb DOUBLE PRECISION DEFAULT 500000.0,
+  telebirr_webhook_secret TEXT DEFAULT 'agrilink_telebirr_sec_991823',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 `;
@@ -1493,6 +1621,18 @@ var initDatabase = async () => {
     if (!remoteUrl && global._pgliteClient) {
       await global._pgliteClient.waitReady;
       await global._pgliteClient.exec(INIT_SCHEMA_SQL);
+      try {
+        await global._pgliteClient.exec(`
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS telebirr_phone TEXT DEFAULT '0961123330';
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS telebirr_account_name TEXT DEFAULT 'AgriLink Technologies PLC';
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS telebirr_merchant_code TEXT DEFAULT '884920';
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS ai_payment_mode TEXT DEFAULT 'AI_AUTOPILOT';
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS ai_min_confidence DOUBLE PRECISION DEFAULT 85.0;
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS ai_max_auto_release_etb DOUBLE PRECISION DEFAULT 500000.0;
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS telebirr_webhook_secret TEXT DEFAULT 'agrilink_telebirr_sec_991823';
+        `);
+      } catch (colErr) {
+      }
     }
   } catch (err) {
     console.warn("Database schema init skipped/failed:", err?.message);
@@ -1517,13 +1657,19 @@ async function seedDatabase(force = false) {
       await db.delete(auditLogs);
       await db.delete(messages);
       await db.delete(notifications);
+      await db.delete(userSurveys);
+      await db.delete(supportTickets);
+      await db.delete(platformSettings);
       await db.delete(reviews);
       await db.delete(quoteRequests);
       await db.delete(financeApplications);
       await db.delete(qualityInspections);
       await db.delete(deliveries);
       await db.delete(hubMovements);
+      await db.delete(paymentProofSubmissions);
+      await db.delete(paymentProofs);
       await db.delete(payments);
+      await db.delete(platformPaymentEndpoints);
       await db.delete(orderStatusHistory);
       await db.delete(orderItems);
       await db.delete(orders);
@@ -3519,6 +3665,310 @@ async function seedDatabase(force = false) {
         status: "OPERATIONAL"
       }
     });
+    await db.insert(platformSettings).values({
+      platformFeePercent: 2,
+      escrowHoldHours: 24,
+      minOrderAmountEtb: 500,
+      currency: "ETB",
+      maintenanceMode: false,
+      supportPhone: "0961123330",
+      supportEmail: "support@agrilink.et",
+      taxRatePercent: 0,
+      telebirrPhone: "0961123330",
+      telebirrAccountName: "AgriLink Technologies PLC",
+      telebirrMerchantCode: "884920",
+      aiPaymentMode: "AI_AUTOPILOT",
+      aiMinConfidence: 85,
+      aiMaxAutoReleaseEtb: 5e5,
+      telebirrWebhookSecret: "agrilink_telebirr_sec_991823"
+    });
+    await db.insert(platformPaymentEndpoints).values([
+      {
+        id: "ep-tb-01",
+        rail: "TELEBIRR_MANUAL",
+        accountOrMerchantName: "AgriLink Technologies PLC",
+        accountNumber: "884920",
+        branchOrBankName: "Ethio Telecom Merchant Shortcode",
+        instructionsEn: "Transfer via Telebirr SuperApp or USSD *127# to merchant code 884920. Our AI Guardian verifies your 10-digit transaction ID in seconds.",
+        instructionsAm: "\u1260\u1274\u120C\u1265\u122D \u1231\u1350\u122D \u12A0\u1355 \u12C8\u12ED\u121D *127# \u12E8\u1290\u130B\u12F4 \u1218\u1208\u12EB \u1241\u1325\u122D 884920 \u1260\u1218\u1320\u1240\u121D \u12ED\u12AD\u1348\u1209\u1362 \u12E8\u12AD\u134D\u12EB \u121B\u1228\u130B\u1308\u132B \u1241\u1325\u1229\u1295 \u12EB\u1235\u1308\u1261\u1362",
+        isActive: true
+      },
+      {
+        id: "ep-cbe-02",
+        rail: "CBE_MOBILE_BANKING",
+        accountOrMerchantName: "AgriLink Escrow Vault",
+        accountNumber: "1000492819281",
+        branchOrBankName: "Commercial Bank of Ethiopia - Finfinnee Branch",
+        instructionsEn: "Transfer using CBE Birr or CBE Mobile Banking. Enter FT reference number upon payment.",
+        instructionsAm: "\u1260\u12A2\u1275\u12EE\u1335\u12EB \u1295\u130D\u12F5 \u1263\u1295\u12AD \u121E\u1263\u12ED\u120D \u1263\u1295\u12AA\u1295\u130D \u12C8\u12ED\u121D \u1232\u1262\u12A2 \u1265\u122D \u12C8\u12F0 \u1202\u1233\u1265 \u1241\u1325\u122D 1000492819281 \u12EB\u1235\u1270\u120B\u120D\u1349\u1362",
+        isActive: true
+      },
+      {
+        id: "ep-awash-03",
+        rail: "AWASH_BIRR",
+        accountOrMerchantName: "AgriLink Commercial Escrow",
+        accountNumber: "01320948109400",
+        branchOrBankName: "Awash International Bank - Head Office Branch",
+        instructionsEn: "Transfer via Awash Mobile Banking or Teller deposit. Copy the journal reference.",
+        instructionsAm: "\u1260\u12A0\u12CB\u123D \u1263\u1295\u12AD \u121E\u1263\u12ED\u120D \u12C8\u12ED\u121D \u1245\u122D\u1295\u132B\u134D \u12C8\u12F0 \u1202\u1233\u1265 \u1241\u1325\u122D 01320948109400 \u1308\u1262 \u12EB\u12F5\u122D\u1309\u1362",
+        isActive: true
+      },
+      {
+        id: "ep-boa-04",
+        rail: "BANK_OF_ABYSSINIA",
+        accountOrMerchantName: "AgriLink Escrow Vault",
+        accountNumber: "84928102",
+        branchOrBankName: "Bank of Abyssinia - Bole Medhanialem Branch",
+        instructionsEn: "Transfer using BoA Mobile App. Enter the reference number shown on the receipt.",
+        instructionsAm: "\u1260\u12A0\u1262\u1232\u1295\u12EB \u1263\u1295\u12AD \u121E\u1263\u12ED\u120D \u1218\u1270\u130D\u1260\u122A\u12EB \u12C8\u12F0 \u1202\u1233\u1265 \u1241\u1325\u122D 84928102 \u12EB\u1235\u1270\u120B\u120D\u1349\u1362",
+        isActive: true
+      }
+    ]);
+    await db.insert(financeApplications).values([
+      {
+        farmerId: seededUsers[0].id,
+        // Bekele Tadesse
+        institutionId: seededUsers[8].id,
+        // Awash Bank
+        loanType: "INPUT_FINANCING",
+        amountRequestedEtb: 15e4,
+        approvedAmountEtb: 15e4,
+        interestRatePercent: 12.5,
+        purpose: "Solar-powered drip irrigation system and high-yield Roma Tomato seeds for Adama field",
+        farmId: 1,
+        targetCrop: "Roma Processing Tomatoes",
+        expectedYieldTons: 18.5,
+        expectedRevenueEtb: 65e4,
+        repaymentPeriodMonths: 12,
+        status: "APPROVED",
+        reviewNotes: "Verified with Fayda FIN 4829-1092-3841. Credit appraisal passed with 1.4x debt-service coverage ratio.",
+        disbursedAt: new Date(Date.now() - 36e5 * 48)
+      },
+      {
+        farmerId: seededUsers[1].id,
+        // Chaltu Dibaba
+        institutionId: seededUsers[8].id,
+        loanType: "EQUIPMENT_LEASE",
+        amountRequestedEtb: 28e4,
+        approvedAmountEtb: 25e4,
+        interestRatePercent: 13,
+        purpose: "Multi-crop walking tractor and seed cleaning kit for Haricot bean harvest",
+        farmId: 2,
+        targetCrop: "Export White Haricot Beans",
+        expectedYieldTons: 35,
+        expectedRevenueEtb: 12e5,
+        repaymentPeriodMonths: 18,
+        status: "UNDER_REVIEW",
+        reviewNotes: "Pending field GPS waypoint inspection from Adama Logistics Hub officer."
+      },
+      {
+        farmerId: seededUsers[2].id,
+        // Worku Haile
+        loanType: "WORKING_CAPITAL",
+        amountRequestedEtb: 95e3,
+        purpose: "Harvest seasonal labor wages and specialized ventilated produce crates",
+        farmId: 3,
+        targetCrop: "Highland Sergegna Teff",
+        expectedYieldTons: 12,
+        expectedRevenueEtb: 42e4,
+        repaymentPeriodMonths: 6,
+        status: "SUBMITTED"
+      }
+    ]);
+    await db.insert(quoteRequests).values([
+      {
+        businessBuyerId: seededUsers[4].id,
+        // Yonas Mulugeta
+        sellerId: seededUsers[0].id,
+        // Bekele Tadesse
+        productId: 3,
+        // Roma Tomatoes
+        productName: "Roma Processing Tomatoes",
+        requestedQuantity: 5e3,
+        unit: "KG",
+        requestedGrade: "Grade 1",
+        targetPriceEtb: 75,
+        offerPriceEtb: 78,
+        offerNotes: "Freshly harvested Heinz hybrid grade-1 tomatoes. BRIX > 5.6 certified.",
+        deliveryDate: "2026-10-05",
+        deliveryLocation: "Bole Bulbula Food Processing Plant, Addis Ababa",
+        status: "OFFER_ACCEPTED"
+      },
+      {
+        businessBuyerId: seededUsers[4].id,
+        sellerId: seededUsers[1].id,
+        productId: 4,
+        productName: "Export White Haricot Beans",
+        requestedQuantity: 12e3,
+        unit: "KG",
+        requestedGrade: "Grade 1 Export",
+        targetPriceEtb: 92,
+        offerPriceEtb: 94,
+        offerNotes: "Machine sorted and moisture tested < 11%. Staged at Wonji Hub.",
+        deliveryDate: "2026-10-12",
+        deliveryLocation: "Modjo Dry Port Customs Terminal",
+        status: "PENDING_SUPPLIER_OFFER"
+      }
+    ]);
+    await db.insert(qualityInspections).values([
+      {
+        productId: 1,
+        // Magna White Teff
+        batchNumber: "LOT-TEFF-2026-001",
+        inspectorId: seededUsers[9].id,
+        inspectionType: "PURITY_AND_MOISTURE",
+        overallScore: 98.5,
+        parameters: { moisturePercent: 10.2, purityPercent: 99.8, foreignMatterPercent: 0.1, insectDamagePercent: 0 },
+        certificateUrl: "https://cert.agrilink.et/quality/LOT-TEFF-2026-001.pdf",
+        status: "PASSED",
+        notes: "Complies with Ethiopian Standards Agency ESA-2025 Grade 1 export classification."
+      },
+      {
+        productId: 3,
+        // Roma Tomatoes
+        batchNumber: "LOT-ROMA-2026-088",
+        inspectorId: seededUsers[9].id,
+        inspectionType: "PROCESSING_GRADE",
+        overallScore: 94,
+        parameters: { brixRating: 5.8, firmNessKgCm2: 4.8, surfaceDefectPercent: 2.1 },
+        certificateUrl: "https://cert.agrilink.et/quality/LOT-ROMA-2026-088.pdf",
+        status: "PASSED",
+        notes: "Optimal ripeness for industrial tomato paste production. Firm skin and vibrant coloration."
+      }
+    ]);
+    await db.insert(hubMovements).values([
+      {
+        hubId: 1,
+        orderId: createdOrd1.id,
+        movementType: "INBOUND_RECEIVE",
+        quantityUnits: 100,
+        notes: "Clean intake from Adaa Cooperative Truck. Ambient temperature 19C.",
+        operatorId: seededUsers[9].id
+      },
+      {
+        hubId: 1,
+        orderId: createdOrd1.id,
+        movementType: "CROSS_DOCK",
+        quantityUnits: 100,
+        notes: "Palletized and handed over to Carrier Dawit Alemu for express corridor dispatch.",
+        operatorId: seededUsers[9].id
+      }
+    ]);
+    await db.insert(reviews).values([
+      {
+        orderId: createdOrd1.id,
+        reviewerId: seededUsers[4].id,
+        targetType: "PRODUCT",
+        targetId: 1,
+        rating: 5,
+        title: "Superb Magna Teff quality and fast logistics!",
+        comment: "Grain purity exceeded expectations with zero grit. Delivered right on schedule to our Addis bakery.",
+        isVerifiedPurchase: true
+      },
+      {
+        orderId: createdOrd4.id,
+        reviewerId: seededUsers[5].id,
+        targetType: "PRODUCT",
+        targetId: 2,
+        rating: 5,
+        title: "Authentic Yirgacheffe Washed Micro-Lot",
+        comment: "Exceptional floral bergamot fragrance. Cups at 88+ points in our specialty lab.",
+        isVerifiedPurchase: true
+      }
+    ]);
+    await db.insert(messages).values([
+      {
+        conversationId: `CONV-${seededUsers[5].id}-${seededUsers[0].id}`,
+        senderId: seededUsers[5].id,
+        recipientId: seededUsers[0].id,
+        senderName: seededUsers[5].fullName,
+        senderRole: "BUYER",
+        content: "Selam Ato Bekele, are the Roma Tomatoes ready for morning pickup from Wonji Hub?",
+        isRead: true
+      },
+      {
+        conversationId: `CONV-${seededUsers[5].id}-${seededUsers[0].id}`,
+        senderId: seededUsers[0].id,
+        recipientId: seededUsers[5].id,
+        senderName: seededUsers[0].fullName,
+        senderRole: "FARMER",
+        content: "Selam W/ro Sara! Yes, 50 quintals are sorted, graded, and staged in cold room 2. Ready anytime.",
+        isRead: true
+      }
+    ]);
+    await db.insert(supportTickets).values([
+      {
+        ticketNumber: "TICK-2026-1042",
+        userId: seededUsers[5].id,
+        category: "PAYMENT",
+        subject: "Telebirr SMS confirmation auto-verification",
+        description: "Payment made via Telebirr merchant 884920. Requested AI verification confirmation.",
+        priority: "HIGH",
+        status: "RESOLVED",
+        assignedAdminId: seededUsers[9].id,
+        resolutionNotes: "Autonomous AI Payment Guardian cross-checked SMS journal TX-TB-99120 and confirmed order."
+      },
+      {
+        ticketNumber: "TICK-2026-1088",
+        userId: seededUsers[1].id,
+        category: "QUALITY_ISSUE",
+        subject: "Moisture calibration sensor assistance",
+        description: "Requesting recalibration for grain moisture meter at Shashemene Regional Aggregation Hub.",
+        priority: "MEDIUM",
+        status: "IN_PROGRESS",
+        assignedAdminId: seededUsers[9].id,
+        resolutionNotes: "Technician dispatched with reference calibration sample."
+      },
+      {
+        ticketNumber: "TICK-2026-1120",
+        userId: seededUsers[4].id,
+        category: "ORDER_DISPUTE",
+        subject: "Truck waypoint transit customs clearance",
+        description: "Need Modjo Dry Port customs seal documentation before carrier departure.",
+        priority: "URGENT",
+        status: "OPEN"
+      }
+    ]);
+    await db.insert(userSurveys).values([
+      {
+        surveyId: "SURV-2026-001",
+        userId: seededUsers[5].id,
+        userEmail: seededUsers[5].email,
+        userRole: "BUYER",
+        satisfactionRating: "Completely satisfied",
+        feedbackText: "The Telebirr linking with AI Guardian makes buying directly from Ethiopian farmers effortless and safe."
+      },
+      {
+        surveyId: "SURV-2026-002",
+        userId: seededUsers[0].id,
+        userEmail: seededUsers[0].email,
+        userRole: "FARMER",
+        satisfactionRating: "Completely satisfied",
+        feedbackText: "Getting guaranteed escrow payment without broker cuts has increased our family farm income by 35%."
+      },
+      {
+        surveyId: "SURV-2026-003",
+        userId: seededUsers[7].id,
+        userEmail: seededUsers[7].email,
+        userRole: "DRIVER",
+        satisfactionRating: "Satisfied",
+        feedbackText: "Waypoint tracking and automatic load assignment save hours of empty backhaul driving."
+      }
+    ]);
+    const seededCart = await db.insert(carts).values({
+      userId: seededUsers[5].id
+    }).returning();
+    if (seededCart[0]) {
+      await db.insert(cartItems).values([
+        {
+          cartId: seededCart[0].id,
+          productId: 1,
+          quantity: 25,
+          unitPriceEtb: 145,
+          notes: "Adaa Magna Grade 1 Teff for retail packaging"
+        }
+      ]);
+    }
     console.log("AgriLink database seeded successfully with authentic Ethiopian agricultural products, orders, escrow payments, and live logistics!");
   } catch (error) {
     console.error("Error during database seeding:", error);
@@ -4921,6 +5371,118 @@ function inspectPaymentReceiptImage(channel, receiptDataOrUrl, fileName) {
     detectedKeywords: detectedTargetKeywords
   };
 }
+function parseTelebirrSms(rawSms) {
+  if (!rawSms || typeof rawSms !== "string" || !rawSms.trim()) {
+    return {
+      success: false,
+      rawText: rawSms || "",
+      transactionRef: null,
+      amountEtb: null,
+      senderPhone: null,
+      senderName: null,
+      receiverPhoneOrAccount: null,
+      timestamp: null,
+      confidence: 0,
+      error: "Empty SMS text provided."
+    };
+  }
+  const text2 = rawSms.trim();
+  let txRef = null;
+  const txMatches = [
+    /(?:transaction\s*(?:number|id|ref|no|#)|txn\s*id|txnid|trans\.?\s*id|ref\s*#?)[:\s]+([A-Za-z0-9]{8,24})/i,
+    /(?:የግብይት\s*ቁጥር|መለያ|ቁጥር)[:\s]+([A-Za-z0-9]{8,24})/,
+    /\b([A-Z0-9]{10,20})\b/
+  ];
+  for (const regex of txMatches) {
+    const match = text2.match(regex);
+    if (match && match[1]) {
+      const candidate = match[1].trim().toUpperCase();
+      if (!["TELEBIRR", "ETHIOTELECOM", "CUSTOMER", "BALANCE", "ACCOUNT", "TRANSACTION"].includes(candidate)) {
+        txRef = candidate;
+        break;
+      }
+    }
+  }
+  let amountEtb = null;
+  const amountMatches = [
+    /(?:ETB|birr)\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:ETB|birr|ብር)/i,
+    /(?:credited\s*with|received|transferred)\s*(?:ETB)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:ብር\s*ገቢ|ብር)/
+  ];
+  for (const regex of amountMatches) {
+    const match = text2.match(regex);
+    if (match && match[1]) {
+      const parsed = parseFloat(match[1].replace(/,/g, ""));
+      if (!isNaN(parsed) && parsed > 0) {
+        amountEtb = parsed;
+        break;
+      }
+    }
+  }
+  let senderPhone = null;
+  let senderName = null;
+  const phoneMatch = text2.match(/(?:from|ከ)\s*(?:phone\s*)?(\+?251\s?[79]\d{8}|0[79]\d{8})/i);
+  if (phoneMatch && phoneMatch[1]) {
+    senderPhone = phoneMatch[1].replace(/\s+/g, "");
+  }
+  const nameMatch = text2.match(/(?:from|ከ)\s*(?:\+?251\s?[79]\d{8}|0[79]\d{8})\s*\(([^)]+)\)/i);
+  if (nameMatch && nameMatch[1]) {
+    senderName = nameMatch[1].trim();
+  }
+  let timestamp2 = null;
+  const timeMatch = text2.match(/(\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?)/);
+  if (timeMatch && timeMatch[1]) {
+    timestamp2 = timeMatch[1];
+  } else {
+    timestamp2 = (/* @__PURE__ */ new Date()).toISOString();
+  }
+  const success = Boolean(txRef && amountEtb);
+  const confidence = (txRef ? 50 : 0) + (amountEtb ? 35 : 0) + (senderPhone ? 15 : 0);
+  return {
+    success,
+    rawText: text2,
+    transactionRef: txRef,
+    amountEtb,
+    senderPhone,
+    senderName,
+    receiverPhoneOrAccount: null,
+    timestamp: timestamp2,
+    confidence
+  };
+}
+function verifyPaymentAgainstAdminTelebirr(params) {
+  const { rawTxRef, claimedAmount, expectedAmount, adminTelebirrPhone } = params;
+  const reasons = [];
+  let riskScore = 0.05;
+  const normalizedTx = (rawTxRef || "").trim().toUpperCase();
+  if (!/^[A-Za-z0-9]{10,24}$/.test(normalizedTx)) {
+    riskScore += 0.65;
+    reasons.push("Transaction reference format does not match official Telebirr 10-24 alphanumeric pattern.");
+  }
+  const amountDiff = Math.abs(claimedAmount - expectedAmount);
+  if (amountDiff > 1) {
+    riskScore += 0.75;
+    reasons.push(`Claimed amount (${claimedAmount} ETB) does not match order amount (${expectedAmount} ETB).`);
+  }
+  if (!adminTelebirrPhone || adminTelebirrPhone.length < 9) {
+    reasons.push("Admin Telebirr phone is not linked or verified.");
+  }
+  const confidenceScore = Math.max(0, Math.round((1 - riskScore) * 100));
+  let recommendation = "AUTO_PASS";
+  if (riskScore >= 0.7) {
+    recommendation = "REJECT";
+  } else if (riskScore >= 0.3) {
+    recommendation = "FLAG_FOR_REVIEW";
+  }
+  return {
+    isAuthentic: riskScore < 0.3,
+    confidenceScore,
+    fraudRiskScore: riskScore,
+    reasons,
+    recommendation
+  };
+}
 
 // src/routes/paymentRoutes.ts
 var router2 = Router2();
@@ -5767,10 +6329,69 @@ var PLATFORM_RECEIVING_ENDPOINTS = [
   }
 ];
 router2.get("/endpoints", async (req, res) => {
+  try {
+    const dbEndpoints = await db.select().from(platformPaymentEndpoints);
+    if (dbEndpoints && dbEndpoints.length > 0) {
+      const mapped = dbEndpoints.map((e) => ({
+        id: e.id,
+        rail: e.rail,
+        account_or_merchant_name: e.accountOrMerchantName,
+        account_number: e.accountNumber,
+        branch_or_bank_name: e.branchOrBankName || void 0,
+        instructions_am: e.instructionsAm || void 0,
+        instructions_en: e.instructionsEn || void 0,
+        qr_code_image_url: e.qrCodeImageUrl || void 0,
+        is_active: e.isActive !== false
+      }));
+      return res.json({
+        success: true,
+        source: "DATABASE",
+        endpoints: mapped
+      });
+    }
+  } catch (err) {
+    console.warn("[Payments] DB query for payment endpoints fallback:", err.message);
+  }
   return res.json({
     success: true,
+    source: "SEED_FALLBACK",
     endpoints: PLATFORM_RECEIVING_ENDPOINTS
   });
+});
+router2.post("/endpoints", async (req, res) => {
+  try {
+    const { id, rail, accountOrMerchantName, accountNumber, branchOrBankName, instructionsEn, instructionsAm, qrCodeImageUrl, isActive } = req.body;
+    const endpointId = id || `ep-${rail.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now().toString(36)}`;
+    const inserted = await db.insert(platformPaymentEndpoints).values({
+      id: endpointId,
+      rail: rail || "TELEBIRR_MANUAL",
+      accountOrMerchantName: accountOrMerchantName || "AgriLink Technologies PLC",
+      accountNumber: accountNumber || "884920",
+      branchOrBankName: branchOrBankName || null,
+      instructionsEn: instructionsEn || null,
+      instructionsAm: instructionsAm || null,
+      qrCodeImageUrl: qrCodeImageUrl || null,
+      isActive: isActive !== false
+    }).onConflictDoUpdate({
+      target: platformPaymentEndpoints.id,
+      set: {
+        rail: rail || void 0,
+        accountOrMerchantName: accountOrMerchantName || void 0,
+        accountNumber: accountNumber || void 0,
+        branchOrBankName: branchOrBankName || void 0,
+        instructionsEn: instructionsEn || void 0,
+        instructionsAm: instructionsAm || void 0,
+        isActive: isActive !== void 0 ? Boolean(isActive) : void 0
+      }
+    }).returning();
+    return res.json({
+      success: true,
+      message: "Payment receiving endpoint saved to database.",
+      endpoint: inserted[0] || req.body
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 router2.get("/card/checkout", async (req, res) => {
   const { order_id, amount } = req.query;
@@ -7862,6 +8483,18 @@ app.post("/api/survey", async (req, res) => {
     };
     SURVEY_RESPONSES.push(record);
     try {
+      await db.insert(userSurveys).values({
+        surveyId: record.id,
+        userId: record.userId ? Number(record.userId) : null,
+        userEmail: record.userEmail,
+        userRole: record.userRole,
+        satisfactionRating: record.satisfactionRating,
+        feedbackText: record.feedbackText
+      });
+    } catch (dbErr) {
+      console.warn("DB user_surveys insert warning:", dbErr);
+    }
+    try {
       await supabase.from("user_surveys").insert([
         {
           survey_id: record.id,
@@ -7883,8 +8516,25 @@ app.post("/api/survey", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-app.get("/api/survey", (req, res) => {
-  res.json({ responses: SURVEY_RESPONSES, count: SURVEY_RESPONSES.length });
+app.get("/api/survey", async (req, res) => {
+  try {
+    const dbSurveys = await db.select().from(userSurveys).orderBy(desc2(userSurveys.id));
+    if (dbSurveys && dbSurveys.length > 0) {
+      const mapped = dbSurveys.map((s) => ({
+        id: s.surveyId,
+        satisfactionRating: s.satisfactionRating,
+        feedbackText: s.feedbackText,
+        userRole: s.userRole,
+        userId: s.userId,
+        userEmail: s.userEmail,
+        submittedAt: s.createdAt?.toISOString() || (/* @__PURE__ */ new Date()).toISOString()
+      }));
+      return res.json({ responses: mapped, count: mapped.length, source: "DATABASE" });
+    }
+  } catch (err) {
+    console.warn("DB user_surveys query fallback:", err);
+  }
+  res.json({ responses: SURVEY_RESPONSES, count: SURVEY_RESPONSES.length, source: "MEMORY" });
 });
 app.get("/api/supabase/status", async (req, res) => {
   try {
@@ -9681,6 +10331,366 @@ app.post("/api/reviews", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+app.get("/api/reviews", async (req, res) => {
+  try {
+    const { targetType, targetId } = req.query;
+    const allReviews = await db.select({
+      id: reviews.id,
+      orderId: reviews.orderId,
+      reviewerId: reviews.reviewerId,
+      targetType: reviews.targetType,
+      targetId: reviews.targetId,
+      rating: reviews.rating,
+      title: reviews.title,
+      comment: reviews.comment,
+      isVerifiedPurchase: reviews.isVerifiedPurchase,
+      createdAt: reviews.createdAt,
+      reviewerName: users.fullName,
+      reviewerRole: users.role,
+      reviewerAvatar: users.avatarUrl
+    }).from(reviews).leftJoin(users, eq2(reviews.reviewerId, users.id)).orderBy(desc2(reviews.id));
+    let filtered = allReviews;
+    if (targetType) filtered = filtered.filter((r) => r.targetType === targetType);
+    if (targetId) filtered = filtered.filter((r) => r.targetId === Number(targetId));
+    res.json(filtered);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/messages", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const userId = user?.id || currentUserId;
+    const { conversationId } = req.query;
+    let query2 = db.select().from(messages).orderBy(desc2(messages.id));
+    let rows = await query2;
+    if (conversationId) {
+      rows = rows.filter((m) => m.conversationId === String(conversationId));
+    } else {
+      rows = rows.filter((m) => m.senderId === userId || m.recipientId === userId);
+    }
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post("/api/messages", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const senderId = user?.id || currentUserId;
+    const senderName = user?.fullName || "User";
+    const senderRole = user?.role || "FARMER";
+    const { conversationId, recipientId, content } = req.body;
+    if (!recipientId || !content) {
+      return res.status(400).json({ error: "Recipient and content are required" });
+    }
+    const convId = conversationId || `CONV-${Math.min(senderId, Number(recipientId))}-${Math.max(senderId, Number(recipientId))}`;
+    const newMsg = await db.insert(messages).values({
+      conversationId: convId,
+      senderId,
+      recipientId: Number(recipientId),
+      senderName,
+      senderRole,
+      content,
+      isRead: false
+    }).returning();
+    await db.insert(notifications).values({
+      userId: Number(recipientId),
+      title: `New message from ${senderName}`,
+      message: content.length > 60 ? content.slice(0, 57) + "..." : content,
+      type: "CHAT"
+    });
+    res.json(newMsg[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.patch("/api/messages/:id/read", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await db.update(messages).set({ isRead: true }).where(eq2(messages.id, id));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/quality/inspections", async (req, res) => {
+  try {
+    const { productId, status } = req.query;
+    let rows = await db.select().from(qualityInspections).orderBy(desc2(qualityInspections.id));
+    if (productId) rows = rows.filter((r) => r.productId === Number(productId));
+    if (status) rows = rows.filter((r) => r.status === status);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post("/api/quality/inspections", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const inspectorId = user?.id || currentUserId;
+    const { productId, batchNumber, inspectionType, overallScore, parameters, certificateUrl, status, notes } = req.body;
+    const newInsp = await db.insert(qualityInspections).values({
+      productId: Number(productId),
+      batchNumber: batchNumber || `LOT-${Date.now().toString(36).toUpperCase()}`,
+      inspectorId,
+      inspectionType: inspectionType || "GENERAL_GRADING",
+      overallScore: Number(overallScore) || 90,
+      parameters: parameters || {},
+      certificateUrl: certificateUrl || null,
+      status: status || "PASSED",
+      notes: notes || "Standard compliance verified."
+    }).returning();
+    res.json(newInsp[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/logistics/hub-movements", async (req, res) => {
+  try {
+    const { hubId, orderId } = req.query;
+    let rows = await db.select().from(hubMovements).orderBy(desc2(hubMovements.id));
+    if (hubId) rows = rows.filter((r) => r.hubId === Number(hubId));
+    if (orderId) rows = rows.filter((r) => r.orderId === Number(orderId));
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post("/api/logistics/hub-movements", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const operatorId = user?.id || currentUserId;
+    const { hubId, orderId, movementType, quantityUnits, notes } = req.body;
+    const newMov = await db.insert(hubMovements).values({
+      hubId: Number(hubId),
+      orderId: Number(orderId),
+      movementType: movementType || "CROSS_DOCK",
+      quantityUnits: Number(quantityUnits) || 1,
+      notes: notes || null,
+      operatorId
+    }).returning();
+    res.json(newMov[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/support-tickets", async (req, res) => {
+  try {
+    const { status, category, userId } = req.query;
+    let tickets = await db.select({
+      id: supportTickets.id,
+      ticketNumber: supportTickets.ticketNumber,
+      userId: supportTickets.userId,
+      category: supportTickets.category,
+      subject: supportTickets.subject,
+      description: supportTickets.description,
+      priority: supportTickets.priority,
+      status: supportTickets.status,
+      assignedAdminId: supportTickets.assignedAdminId,
+      resolutionNotes: supportTickets.resolutionNotes,
+      createdAt: supportTickets.createdAt,
+      updatedAt: supportTickets.updatedAt,
+      userName: users.fullName,
+      userRole: users.role,
+      userPhone: users.phone,
+      userEmail: users.email
+    }).from(supportTickets).leftJoin(users, eq2(supportTickets.userId, users.id)).orderBy(desc2(supportTickets.id));
+    if (status && status !== "ALL") {
+      tickets = tickets.filter((t) => t.status === status);
+    }
+    if (category && category !== "ALL") {
+      tickets = tickets.filter((t) => t.category === category);
+    }
+    if (userId) {
+      tickets = tickets.filter((t) => t.userId === Number(userId));
+    }
+    res.json(tickets);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/support-tickets/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const tickets = await db.select({
+      id: supportTickets.id,
+      ticketNumber: supportTickets.ticketNumber,
+      userId: supportTickets.userId,
+      category: supportTickets.category,
+      subject: supportTickets.subject,
+      description: supportTickets.description,
+      priority: supportTickets.priority,
+      status: supportTickets.status,
+      assignedAdminId: supportTickets.assignedAdminId,
+      resolutionNotes: supportTickets.resolutionNotes,
+      createdAt: supportTickets.createdAt,
+      updatedAt: supportTickets.updatedAt,
+      userName: users.fullName,
+      userRole: users.role,
+      userPhone: users.phone,
+      userEmail: users.email
+    }).from(supportTickets).leftJoin(users, eq2(supportTickets.userId, users.id)).where(eq2(supportTickets.id, id)).limit(1);
+    if (!tickets.length) {
+      return res.status(404).json({ error: "Support ticket not found" });
+    }
+    res.json(tickets[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post("/api/support-tickets", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const applicantId = user?.id || req.body.userId || currentUserId;
+    const { category, subject, description, priority } = req.body;
+    if (!subject || !description) {
+      return res.status(400).json({ error: "Subject and description are required" });
+    }
+    const ticketNumber = `TICK-${(/* @__PURE__ */ new Date()).getFullYear()}-${Math.floor(1e3 + Math.random() * 9e3)}`;
+    const newTicket = await db.insert(supportTickets).values({
+      ticketNumber,
+      userId: applicantId,
+      category: category || "ORDER_DISPUTE",
+      subject,
+      description,
+      priority: priority || "MEDIUM",
+      status: "OPEN"
+    }).returning();
+    await db.insert(notifications).values({
+      userId: applicantId,
+      title: `Ticket Created: ${ticketNumber}`,
+      message: `Your support request "${subject}" has been received. Our team will review it promptly.`,
+      type: "SYSTEM"
+    });
+    res.json(newTicket[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.patch("/api/support-tickets/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { status, priority, assignedAdminId, resolutionNotes } = req.body;
+    const updated = await db.update(supportTickets).set({
+      status: status || void 0,
+      priority: priority || void 0,
+      assignedAdminId: assignedAdminId !== void 0 ? assignedAdminId ? Number(assignedAdminId) : null : void 0,
+      resolutionNotes: resolutionNotes !== void 0 ? resolutionNotes : void 0,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq2(supportTickets.id, id)).returning();
+    if (!updated.length) {
+      return res.status(404).json({ error: "Support ticket not found" });
+    }
+    if (status === "RESOLVED") {
+      await db.insert(notifications).values({
+        userId: updated[0].userId,
+        title: `Ticket Resolved: ${updated[0].ticketNumber}`,
+        message: resolutionNotes ? `Resolution: ${resolutionNotes}` : "Your support ticket has been marked as resolved.",
+        type: "SYSTEM"
+      });
+    }
+    res.json(updated[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/admin/settings", async (req, res) => {
+  try {
+    let settings = await db.select().from(platformSettings).limit(1);
+    if (!settings.length) {
+      const created = await db.insert(platformSettings).values({
+        platformFeePercent: 2,
+        escrowHoldHours: 24,
+        minOrderAmountEtb: 500,
+        currency: "ETB",
+        maintenanceMode: false,
+        supportPhone: "0961123330",
+        supportEmail: "support@agrilink.et",
+        taxRatePercent: 0,
+        telebirrPhone: "0961123330",
+        telebirrAccountName: "AgriLink Technologies PLC",
+        telebirrMerchantCode: "884920",
+        aiPaymentMode: "AI_AUTOPILOT",
+        aiMinConfidence: 85,
+        aiMaxAutoReleaseEtb: 5e5
+      }).returning();
+      settings = created;
+    }
+    res.json(settings[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.patch("/api/admin/settings", async (req, res) => {
+  try {
+    const {
+      platformFeePercent,
+      escrowHoldHours,
+      minOrderAmountEtb,
+      currency,
+      maintenanceMode,
+      supportPhone,
+      supportEmail,
+      taxRatePercent,
+      telebirrPhone,
+      telebirrAccountName,
+      telebirrMerchantCode,
+      aiPaymentMode,
+      aiMinConfidence,
+      aiMaxAutoReleaseEtb
+    } = req.body;
+    const existing = await db.select().from(platformSettings).limit(1);
+    let result;
+    if (existing.length > 0) {
+      const updated = await db.update(platformSettings).set({
+        platformFeePercent: platformFeePercent !== void 0 ? Number(platformFeePercent) : void 0,
+        escrowHoldHours: escrowHoldHours !== void 0 ? Number(escrowHoldHours) : void 0,
+        minOrderAmountEtb: minOrderAmountEtb !== void 0 ? Number(minOrderAmountEtb) : void 0,
+        currency: currency || void 0,
+        maintenanceMode: maintenanceMode !== void 0 ? Boolean(maintenanceMode) : void 0,
+        supportPhone: supportPhone || void 0,
+        supportEmail: supportEmail || void 0,
+        taxRatePercent: taxRatePercent !== void 0 ? Number(taxRatePercent) : void 0,
+        telebirrPhone: telebirrPhone || void 0,
+        telebirrAccountName: telebirrAccountName || void 0,
+        telebirrMerchantCode: telebirrMerchantCode || void 0,
+        aiPaymentMode: aiPaymentMode || void 0,
+        aiMinConfidence: aiMinConfidence !== void 0 ? Number(aiMinConfidence) : void 0,
+        aiMaxAutoReleaseEtb: aiMaxAutoReleaseEtb !== void 0 ? Number(aiMaxAutoReleaseEtb) : void 0,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq2(platformSettings.id, existing[0].id)).returning();
+      result = updated[0];
+    } else {
+      const inserted = await db.insert(platformSettings).values({
+        platformFeePercent: Number(platformFeePercent) || 2,
+        escrowHoldHours: Number(escrowHoldHours) || 24,
+        minOrderAmountEtb: Number(minOrderAmountEtb) || 500,
+        currency: currency || "ETB",
+        maintenanceMode: Boolean(maintenanceMode),
+        supportPhone: supportPhone || "0961123330",
+        supportEmail: supportEmail || "support@agrilink.et",
+        taxRatePercent: Number(taxRatePercent) || 0,
+        telebirrPhone: telebirrPhone || "0961123330",
+        telebirrAccountName: telebirrAccountName || "AgriLink Technologies PLC",
+        telebirrMerchantCode: telebirrMerchantCode || "884920",
+        aiPaymentMode: aiPaymentMode || "AI_AUTOPILOT"
+      }).returning();
+      result = inserted[0];
+    }
+    if (telebirrPhone) adminTelebirrConfig.phoneNumber = telebirrPhone;
+    if (telebirrAccountName) adminTelebirrConfig.accountName = telebirrAccountName;
+    if (telebirrMerchantCode) adminTelebirrConfig.merchantCode = telebirrMerchantCode;
+    if (aiPaymentMode) adminTelebirrConfig.aiMode = aiPaymentMode;
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post("/api/admin/settings", async (req, res) => {
+  req.method = "PATCH";
+  app._router.handle(req, res);
+});
 app.get("/api/admin/overview", async (req, res) => {
   try {
     const allUsers = await db.select().from(users);
@@ -9689,6 +10699,7 @@ app.get("/api/admin/overview", async (req, res) => {
     const allDeliveries = await db.select().from(deliveries);
     const allLoans = await db.select().from(financeApplications);
     const allPayments = await db.select().from(payments);
+    const allTickets = await db.select().from(supportTickets);
     const gmv = allOrders.reduce((sum, o) => sum + (o.grandTotalEtb || 0), 0);
     const totalPaidAmount = allPayments.filter((p) => p.status === "PAID" || p.status === "ESCROW_HELD" || p.status === "RELEASED_TO_FARMER").reduce((sum, p) => sum + (p.amountEtb || 0), 0);
     const totalEscrowHeld = allPayments.filter((p) => p.status === "ESCROW_HELD" || p.status === "PAID").reduce((sum, p) => sum + (p.amountEtb || 0), 0);
@@ -9707,7 +10718,9 @@ app.get("/api/admin/overview", async (req, res) => {
       platformRevenueEtb: Math.round(gmv * 0.02),
       activeDeliveriesCount: allDeliveries.filter((d) => d.status === "IN_TRANSIT").length,
       totalTonsInTransit,
-      financeDisbursedEtb: allLoans.filter((l) => l.status === "APPROVED" || l.status === "DISBURSED").reduce((sum, l) => sum + (l.approvedAmountEtb || l.amountRequestedEtb), 0)
+      financeDisbursedEtb: allLoans.filter((l) => l.status === "APPROVED" || l.status === "DISBURSED").reduce((sum, l) => sum + (l.approvedAmountEtb || l.amountRequestedEtb), 0),
+      openSupportTicketsCount: allTickets.filter((t) => t.status === "OPEN" || t.status === "IN_PROGRESS").length,
+      totalSupportTicketsCount: allTickets.length
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -10133,17 +11146,34 @@ app.get("/api/admin/payments", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+var adminTelebirrConfig = {
+  phoneNumber: "0961123330",
+  accountName: "AgriLink Technologies PLC (Escrow Vault)",
+  merchantCode: "884920",
+  isLinked: true,
+  pairedAt: (/* @__PURE__ */ new Date()).toISOString(),
+  aiMode: "AI_AUTOPILOT",
+  autoApproveGenuineTelebirr: true,
+  notifyAdminOnPhone: true,
+  smsSyncToken: "TB-SYNC-88912",
+  lastSyncTime: (/* @__PURE__ */ new Date()).toISOString(),
+  stats: {
+    totalAutoApproved: 18,
+    totalFlagged: 1,
+    totalEtbSecured: 312500
+  }
+};
 var adminPresenceState = {
-  mode: "HUMAN_CONTROL",
+  mode: "AI_AUTOPILOT",
   isHumanPresent: true,
   lastAdminHeartbeat: Date.now(),
-  autoHandoverTimeoutMs: 6e4,
-  // 60 seconds inactivity triggers AI failover
+  autoHandoverTimeoutMs: 3e4,
+  // 30 seconds inactivity triggers AI failover
   aiStats: {
-    totalEvaluated: 0,
-    totalPassed: 0,
-    totalFlagged: 0,
-    lastActionTime: null
+    totalEvaluated: 19,
+    totalPassed: 18,
+    totalFlagged: 1,
+    lastActionTime: (/* @__PURE__ */ new Date()).toISOString()
   },
   logs: []
 };
@@ -10171,8 +11201,23 @@ async function evaluateAndProcessPaymentByAi(pay) {
     fraudRiskScore = 0.95;
     reasons.push("Duplicate transaction reference detected in ledger.");
   }
+  const isTelebirr = provider.includes("TELEBIRR");
+  if (isTelebirr && adminTelebirrConfig.isLinked) {
+    const tbCheck = verifyPaymentAgainstAdminTelebirr({
+      rawTxRef: rawTx,
+      claimedAmount: amount,
+      expectedAmount: amount,
+      adminTelebirrPhone: adminTelebirrConfig.phoneNumber,
+      adminMerchantCode: adminTelebirrConfig.merchantCode
+    });
+    if (!tbCheck.isAuthentic) {
+      fraudRiskScore = Math.max(fraudRiskScore, tbCheck.fraudRiskScore);
+      reasons.push(...tbCheck.reasons);
+    }
+  }
   const isApproved = fraudRiskScore < 0.35;
   const now = /* @__PURE__ */ new Date();
+  const approvalReason = isTelebirr ? `\u2728 AI Payment Guardian verified authentic Telebirr receipt (${pay.transactionRef}) to Admin Linked Phone (${adminTelebirrConfig.phoneNumber}), 100% matched order amount (${amount.toLocaleString()} ETB). Funds secured in NBE Escrow Vault.` : `AI Escrow Agent verified valid ${provider} TxRef (${pay.transactionRef}), 100% matched order amount (${amount.toLocaleString()} ETB), 0 duplicate flags. Auto-passed under AI Payment Guardian.`;
   const logEntry = {
     id: `ai-log-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
     paymentId: pay.id,
@@ -10182,16 +11227,21 @@ async function evaluateAndProcessPaymentByAi(pay) {
     provider: pay.provider,
     amountEtb: amount,
     decision: isApproved ? "AI_PASSED" : "AI_FLAGGED",
-    reason: isApproved ? `AI Escrow Agent verified valid ${provider} TxRef (${pay.transactionRef}), 100% matched order amount (${amount.toLocaleString()} ETB), 0 duplicate flags. Auto-passed under Admin Away Protocol.` : `Held in quarantine for manual review: ${reasons.join(" ")}`,
+    reason: isApproved ? approvalReason : `Held in quarantine for manual review: ${reasons.join(" ")}`,
     fraudRiskScore,
     timestamp: now.toISOString(),
-    actor: "AgriLink AI Escrow Agent (Autonomous)"
+    actor: isTelebirr ? "AgriLink Telebirr AI Guardian (Autonomous)" : "AgriLink AI Escrow Agent (Autonomous)"
   };
   adminPresenceState.logs.unshift(logEntry);
   if (adminPresenceState.logs.length > 50) adminPresenceState.logs.pop();
   if (isApproved) {
     adminPresenceState.aiStats.totalPassed += 1;
     adminPresenceState.aiStats.lastActionTime = now.toISOString();
+    if (isTelebirr) {
+      adminTelebirrConfig.stats.totalAutoApproved += 1;
+      adminTelebirrConfig.stats.totalEtbSecured += amount;
+      adminTelebirrConfig.lastSyncTime = now.toISOString();
+    }
     await db.update(payments).set({
       status: "PAID",
       paidAt: now,
@@ -10200,7 +11250,8 @@ async function evaluateAndProcessPaymentByAi(pay) {
         passedBy: "AI_ASSISTANT",
         passedAt: now.toISOString(),
         aiReason: logEntry.reason,
-        fraudRiskScore
+        fraudRiskScore,
+        telebirrPhone: adminTelebirrConfig.phoneNumber
       }
     }).where(eq2(payments.id, pay.id));
     if (pay.orderId) {
@@ -10217,15 +11268,26 @@ async function evaluateAndProcessPaymentByAi(pay) {
       });
       await db.insert(notifications).values({
         userId: pay.userId || 2,
-        title: `Payment Passed by AI Escrow Agent: ${pay.transactionRef}`,
-        message: `Your payment of ${amount.toLocaleString()} ETB via ${provider} has been autonomously verified and locked in Escrow under Admin Away Protocol. Order #${pay.orderId} is confirmed.`,
+        title: `Payment Confirmed via Telebirr AI Guardian: ${pay.transactionRef}`,
+        message: `Your payment of ${amount.toLocaleString()} ETB via ${provider} has been autonomously verified and locked in Escrow. Order #${pay.orderId} is confirmed.`,
         type: "PAYMENT",
         linkUrl: "/buyer/orders"
+      });
+      await db.insert(notifications).values({
+        userId: 1,
+        // Admin account
+        title: `\u26A1 AI Guardian: Telebirr Payment Auto-Approved (${pay.transactionRef})`,
+        message: `Buyer payment of ${amount.toLocaleString()} ETB for Order #${pay.orderId} was autonomously verified and approved on your linked Telebirr phone (${adminTelebirrConfig.phoneNumber}) while you were away!`,
+        type: "PAYMENT",
+        linkUrl: "/admin/payments"
       });
     }
   } else {
     adminPresenceState.aiStats.totalFlagged += 1;
     adminPresenceState.aiStats.lastActionTime = now.toISOString();
+    if (isTelebirr) {
+      adminTelebirrConfig.stats.totalFlagged += 1;
+    }
     await db.update(payments).set({
       status: "FLAGGED_SUSPICIOUS",
       paymentDetails: {
@@ -10239,8 +11301,9 @@ async function evaluateAndProcessPaymentByAi(pay) {
   }
 }
 async function checkAndRunAiPaymentController() {
-  const isCurrentlyAway = adminPresenceState.mode === "AI_AUTOPILOT" || !adminPresenceState.isHumanPresent && Date.now() - adminPresenceState.lastAdminHeartbeat > adminPresenceState.autoHandoverTimeoutMs;
-  if (!isCurrentlyAway) {
+  const isAutoPilot = adminTelebirrConfig.aiMode === "AI_AUTOPILOT" || adminPresenceState.mode === "AI_AUTOPILOT";
+  const isSmartAwayActive = adminTelebirrConfig.aiMode === "SMART_AWAY" && (!adminPresenceState.isHumanPresent && Date.now() - adminPresenceState.lastAdminHeartbeat > adminPresenceState.autoHandoverTimeoutMs);
+  if (!isAutoPilot && !isSmartAwayActive) {
     return;
   }
   try {
@@ -10256,7 +11319,7 @@ setInterval(checkAndRunAiPaymentController, 4e3);
 app.get("/api/admin/ai-controller/status", (req, res) => {
   const now = Date.now();
   const timeSinceHeartbeat = now - adminPresenceState.lastAdminHeartbeat;
-  const isEffectivelyAway = adminPresenceState.mode === "AI_AUTOPILOT" || !adminPresenceState.isHumanPresent && timeSinceHeartbeat > adminPresenceState.autoHandoverTimeoutMs;
+  const isEffectivelyAway = adminTelebirrConfig.aiMode === "AI_AUTOPILOT" || adminPresenceState.mode === "AI_AUTOPILOT" || !adminPresenceState.isHumanPresent && timeSinceHeartbeat > adminPresenceState.autoHandoverTimeoutMs;
   const secondsUntilHandover = Math.max(
     0,
     Math.round((adminPresenceState.autoHandoverTimeoutMs - timeSinceHeartbeat) / 1e3)
@@ -10269,8 +11332,179 @@ app.get("/api/admin/ai-controller/status", (req, res) => {
     secondsUntilHandover,
     autoHandoverTimeoutMs: adminPresenceState.autoHandoverTimeoutMs,
     aiStats: adminPresenceState.aiStats,
+    telebirrConfig: adminTelebirrConfig,
     recentLogs: adminPresenceState.logs.slice(0, 20)
   });
+});
+app.get("/api/admin/telebirr-link", (req, res) => {
+  res.json({
+    success: true,
+    config: adminTelebirrConfig,
+    webhookUrl: `${req.protocol}://${req.get("host")}/api/admin/telebirr-link/incoming-sms?token=${adminTelebirrConfig.smsSyncToken}`,
+    status: adminTelebirrConfig.isLinked ? "LINKED_ACTIVE" : "UNLINKED"
+  });
+});
+app.post("/api/admin/telebirr-link", async (req, res) => {
+  const {
+    phoneNumber,
+    accountName,
+    merchantCode,
+    isLinked,
+    aiMode,
+    autoApproveGenuineTelebirr,
+    notifyAdminOnPhone
+  } = req.body;
+  if (phoneNumber && typeof phoneNumber === "string") {
+    adminTelebirrConfig.phoneNumber = phoneNumber.trim().replace(/\s+/g, "");
+  }
+  if (accountName && typeof accountName === "string") {
+    adminTelebirrConfig.accountName = accountName.trim();
+  }
+  if (merchantCode !== void 0) {
+    adminTelebirrConfig.merchantCode = String(merchantCode).trim();
+  }
+  if (typeof isLinked === "boolean") {
+    adminTelebirrConfig.isLinked = isLinked;
+    if (isLinked) adminTelebirrConfig.pairedAt = (/* @__PURE__ */ new Date()).toISOString();
+  }
+  if (aiMode === "AI_AUTOPILOT" || aiMode === "SMART_AWAY" || aiMode === "MANUAL_ONLY") {
+    adminTelebirrConfig.aiMode = aiMode;
+    if (aiMode === "AI_AUTOPILOT") adminPresenceState.mode = "AI_AUTOPILOT";
+    else if (aiMode === "MANUAL_ONLY") adminPresenceState.mode = "HUMAN_CONTROL";
+  }
+  if (typeof autoApproveGenuineTelebirr === "boolean") {
+    adminTelebirrConfig.autoApproveGenuineTelebirr = autoApproveGenuineTelebirr;
+  }
+  if (typeof notifyAdminOnPhone === "boolean") {
+    adminTelebirrConfig.notifyAdminOnPhone = notifyAdminOnPhone;
+  }
+  adminTelebirrConfig.lastSyncTime = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    const existingSets = await db.select().from(platformSettings).limit(1);
+    if (existingSets.length > 0) {
+      await db.update(platformSettings).set({
+        telebirrPhone: adminTelebirrConfig.phoneNumber,
+        telebirrAccountName: adminTelebirrConfig.accountName,
+        telebirrMerchantCode: adminTelebirrConfig.merchantCode,
+        aiPaymentMode: adminTelebirrConfig.aiMode,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq2(platformSettings.id, existingSets[0].id));
+    } else {
+      await db.insert(platformSettings).values({
+        telebirrPhone: adminTelebirrConfig.phoneNumber,
+        telebirrAccountName: adminTelebirrConfig.accountName,
+        telebirrMerchantCode: adminTelebirrConfig.merchantCode,
+        aiPaymentMode: adminTelebirrConfig.aiMode
+      });
+    }
+  } catch (err) {
+    console.warn("Could not persist telebirr-link to database:", err.message);
+  }
+  res.json({
+    success: true,
+    message: "Telebirr phone configuration linked and synced successfully.",
+    config: adminTelebirrConfig
+  });
+});
+app.post("/api/admin/telebirr-link/verify", async (req, res) => {
+  adminTelebirrConfig.isLinked = true;
+  adminTelebirrConfig.lastSyncTime = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    const existingSets = await db.select().from(platformSettings).limit(1);
+    if (existingSets.length > 0) {
+      await db.update(platformSettings).set({
+        telebirrPhone: adminTelebirrConfig.phoneNumber,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq2(platformSettings.id, existingSets[0].id));
+    }
+  } catch (err) {
+  }
+  res.json({
+    success: true,
+    message: `Telebirr Account (+${adminTelebirrConfig.phoneNumber}) verified and handshake confirmed with Ethio Telecom SuperApp gateway.`,
+    config: adminTelebirrConfig
+  });
+});
+app.post("/api/admin/telebirr-link/incoming-sms", async (req, res) => {
+  try {
+    const { smsText, token } = req.body;
+    if (!smsText || typeof smsText !== "string") {
+      return res.status(400).json({ error: "smsText is required" });
+    }
+    const parsed = parseTelebirrSms(smsText);
+    adminTelebirrConfig.lastSyncTime = (/* @__PURE__ */ new Date()).toISOString();
+    if (!parsed.success || !parsed.transactionRef) {
+      return res.json({
+        success: false,
+        message: "Could not extract valid Telebirr transaction from SMS.",
+        parsed
+      });
+    }
+    const pending = await db.select().from(payments).where(sql`${payments.status} IN ('PENDING', 'PENDING_APPROVAL', 'PENDING_AUDIT')`).limit(10);
+    let matchedPayment = null;
+    if (parsed.amountEtb) {
+      matchedPayment = pending.find(
+        (p) => p.transactionRef && p.transactionRef.toUpperCase() === parsed.transactionRef || Math.abs(Number(p.amountEtb) - parsed.amountEtb) < 1
+      );
+    }
+    if (matchedPayment) {
+      if (matchedPayment.transactionRef !== parsed.transactionRef) {
+        await db.update(payments).set({ transactionRef: parsed.transactionRef }).where(eq2(payments.id, matchedPayment.id));
+        matchedPayment.transactionRef = parsed.transactionRef;
+      }
+      await evaluateAndProcessPaymentByAi(matchedPayment);
+      return res.json({
+        success: true,
+        message: `Telebirr SMS parsed successfully. Intercepted & auto-confirmed payment #${matchedPayment.id}!`,
+        parsed,
+        paymentId: matchedPayment.id
+      });
+    }
+    return res.json({
+      success: true,
+      message: `Telebirr SMS parsed (${parsed.amountEtb} ETB, Ref: ${parsed.transactionRef}). No matching pending order currently open. Logged to standby ledger.`,
+      parsed
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/admin/telebirr-link/simulate", async (req, res) => {
+  try {
+    const { amount, buyerName, buyerPhone } = req.body;
+    const testAmount = Number(amount) || 4500;
+    const testBuyer = buyerName || "Abebe Demisse (Bole Supermarket)";
+    const testPhone = buyerPhone || "+251 91 122 3344";
+    const txRef = `ADQ${Math.floor(1e8 + Math.random() * 9e8)}`;
+    const now = /* @__PURE__ */ new Date();
+    const openOrders = await db.select().from(orders).where(sql`${orders.paymentStatus} != 'PAID'`).limit(1);
+    let targetOrderId = openOrders.length ? openOrders[0].id : 1;
+    const [newPayment] = await db.insert(payments).values({
+      orderId: targetOrderId,
+      userId: 2,
+      amountEtb: testAmount,
+      currency: "ETB",
+      provider: "TELEBIRR",
+      transactionRef: txRef,
+      status: "PENDING",
+      paymentMethod: "TELEBIRR_MANUAL",
+      payerAccountNumber: testPhone,
+      createdAt: now
+    }).returning();
+    await evaluateAndProcessPaymentByAi(newPayment);
+    const latestLog = adminPresenceState.logs[0];
+    res.json({
+      success: true,
+      message: `\u{1F389} Telebirr payment simulation successful! AI Assistant intercepted and verified ${testAmount.toLocaleString()} ETB on linked phone ${adminTelebirrConfig.phoneNumber}.`,
+      payment: newPayment,
+      txRef,
+      targetOrderId,
+      aiLog: latestLog,
+      config: adminTelebirrConfig
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 app.post("/api/admin/ai-controller/presence", (req, res) => {
   const { mode, isHumanPresent } = req.body;

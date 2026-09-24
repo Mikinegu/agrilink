@@ -550,6 +550,21 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id SERIAL PRIMARY KEY,
+  ticket_number TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  category TEXT NOT NULL DEFAULT 'ORDER_DISPUTE',
+  subject TEXT NOT NULL,
+  description TEXT NOT NULL,
+  priority TEXT NOT NULL DEFAULT 'MEDIUM',
+  status TEXT NOT NULL DEFAULT 'OPEN',
+  assigned_admin_id INTEGER,
+  resolution_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS user_surveys (
   id SERIAL PRIMARY KEY,
   survey_id TEXT NOT NULL UNIQUE,
@@ -571,6 +586,13 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   support_phone TEXT DEFAULT '0961123330',
   support_email TEXT DEFAULT 'support@agrilink.et',
   tax_rate_percent DOUBLE PRECISION DEFAULT 0.0,
+  telebirr_phone TEXT DEFAULT '0961123330',
+  telebirr_account_name TEXT DEFAULT 'AgriLink Technologies PLC',
+  telebirr_merchant_code TEXT DEFAULT '884920',
+  ai_payment_mode TEXT DEFAULT 'AI_AUTOPILOT',
+  ai_min_confidence DOUBLE PRECISION DEFAULT 85.0,
+  ai_max_auto_release_etb DOUBLE PRECISION DEFAULT 500000.0,
+  telebirr_webhook_secret TEXT DEFAULT 'agrilink_telebirr_sec_991823',
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 `;
@@ -658,6 +680,19 @@ export const initDatabase = async () => {
     if (!remoteUrl && global._pgliteClient) {
       await global._pgliteClient.waitReady;
       await global._pgliteClient.exec(INIT_SCHEMA_SQL);
+      try {
+        await global._pgliteClient.exec(`
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS telebirr_phone TEXT DEFAULT '0961123330';
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS telebirr_account_name TEXT DEFAULT 'AgriLink Technologies PLC';
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS telebirr_merchant_code TEXT DEFAULT '884920';
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS ai_payment_mode TEXT DEFAULT 'AI_AUTOPILOT';
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS ai_min_confidence DOUBLE PRECISION DEFAULT 85.0;
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS ai_max_auto_release_etb DOUBLE PRECISION DEFAULT 500000.0;
+          ALTER TABLE platform_settings ADD COLUMN IF NOT EXISTS telebirr_webhook_secret TEXT DEFAULT 'agrilink_telebirr_sec_991823';
+        `);
+      } catch (colErr) {
+        // Safe ignore if columns already exist
+      }
     }
   } catch (err: any) {
     console.warn('Database schema init skipped/failed:', err?.message);

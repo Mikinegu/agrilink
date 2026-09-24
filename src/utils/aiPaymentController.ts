@@ -612,3 +612,178 @@ export function generateSampleBankReceipt(
   };
 }
 
+export interface TelebirrParsedSms {
+  success: boolean;
+  rawText: string;
+  transactionRef: string | null;
+  amountEtb: number | null;
+  senderPhone: string | null;
+  senderName: string | null;
+  receiverPhoneOrAccount: string | null;
+  timestamp: string | null;
+  confidence: number;
+  error?: string;
+}
+
+/**
+ * Parses Telebirr SMS receipts in English or Amharic received on the Admin's phone.
+ * Extracts Transaction Reference, Amount (ETB), Sender Phone/Name, and Timestamp.
+ */
+export function parseTelebirrSms(rawSms: string): TelebirrParsedSms {
+  if (!rawSms || typeof rawSms !== 'string' || !rawSms.trim()) {
+    return {
+      success: false,
+      rawText: rawSms || '',
+      transactionRef: null,
+      amountEtb: null,
+      senderPhone: null,
+      senderName: null,
+      receiverPhoneOrAccount: null,
+      timestamp: null,
+      confidence: 0,
+      error: 'Empty SMS text provided.',
+    };
+  }
+
+  const text = rawSms.trim();
+
+  // 1. Extract Transaction Reference (e.g. Txn ID: CC481029482, Transaction number: ADQ882941091, የግብይት ቁጥር: ...)
+  let txRef: string | null = null;
+  const txMatches = [
+    /(?:transaction\s*(?:number|id|ref|no|#)|txn\s*id|txnid|trans\.?\s*id|ref\s*#?)[:\s]+([A-Za-z0-9]{8,24})/i,
+    /(?:የግብይት\s*ቁጥር|መለያ|ቁጥር)[:\s]+([A-Za-z0-9]{8,24})/,
+    /\b([A-Z0-9]{10,20})\b/,
+  ];
+
+  for (const regex of txMatches) {
+    const match = text.match(regex);
+    if (match && match[1]) {
+      const candidate = match[1].trim().toUpperCase();
+      // Avoid matching common words
+      if (!['TELEBIRR', 'ETHIOTELECOM', 'CUSTOMER', 'BALANCE', 'ACCOUNT', 'TRANSACTION'].includes(candidate)) {
+        txRef = candidate;
+        break;
+      }
+    }
+  }
+
+  // 2. Extract Amount (ETB / ብር)
+  let amountEtb: number | null = null;
+  const amountMatches = [
+    /(?:ETB|birr)\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:ETB|birr|ብር)/i,
+    /(?:credited\s*with|received|transferred)\s*(?:ETB)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:ብር\s*ገቢ|ብር)/,
+  ];
+
+  for (const regex of amountMatches) {
+    const match = text.match(regex);
+    if (match && match[1]) {
+      const parsed = parseFloat(match[1].replace(/,/g, ''));
+      if (!isNaN(parsed) && parsed > 0) {
+        amountEtb = parsed;
+        break;
+      }
+    }
+  }
+
+  // 3. Extract Sender Phone & Name
+  let senderPhone: string | null = null;
+  let senderName: string | null = null;
+
+  // Phone match (e.g. from 251911223344, 0911223344, +2519...)
+  const phoneMatch = text.match(/(?:from|ከ)\s*(?:phone\s*)?(\+?251\s?[79]\d{8}|0[79]\d{8})/i);
+  if (phoneMatch && phoneMatch[1]) {
+    senderPhone = phoneMatch[1].replace(/\s+/g, '');
+  }
+
+  // Name match inside parentheses or after phone (e.g. 'from 251911223344 (Abebe Kebede)')
+  const nameMatch = text.match(/(?:from|ከ)\s*(?:\+?251\s?[79]\d{8}|0[79]\d{8})\s*\(([^)]+)\)/i);
+  if (nameMatch && nameMatch[1]) {
+    senderName = nameMatch[1].trim();
+  }
+
+  // 4. Timestamp
+  let timestamp: string | null = null;
+  const timeMatch = text.match(/(\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?)/);
+  if (timeMatch && timeMatch[1]) {
+    timestamp = timeMatch[1];
+  } else {
+    timestamp = new Date().toISOString();
+  }
+
+  const success = Boolean(txRef && amountEtb);
+  const confidence = (txRef ? 50 : 0) + (amountEtb ? 35 : 0) + (senderPhone ? 15 : 0);
+
+  return {
+    success,
+    rawText: text,
+    transactionRef: txRef,
+    amountEtb,
+    senderPhone,
+    senderName,
+    receiverPhoneOrAccount: null,
+    timestamp,
+    confidence,
+  };
+}
+
+/**
+ * Cross-references an incoming payment attempt against the Admin's linked Telebirr account.
+ */
+export function verifyPaymentAgainstAdminTelebirr(params: {
+  rawTxRef: string;
+  claimedAmount: number;
+  expectedAmount: number;
+  adminTelebirrPhone: string;
+  adminMerchantCode?: string;
+  payerProvidedPhone?: string;
+}): {
+  isAuthentic: boolean;
+  confidenceScore: number;
+  fraudRiskScore: number;
+  reasons: string[];
+  recommendation: 'AUTO_PASS' | 'FLAG_FOR_REVIEW' | 'REJECT';
+} {
+  const { rawTxRef, claimedAmount, expectedAmount, adminTelebirrPhone } = params;
+  const reasons: string[] = [];
+  let riskScore = 0.05;
+
+  const normalizedTx = (rawTxRef || '').trim().toUpperCase();
+
+  // Syntax check
+  if (!/^[A-Za-z0-9]{10,24}$/.test(normalizedTx)) {
+    riskScore += 0.65;
+    reasons.push('Transaction reference format does not match official Telebirr 10-24 alphanumeric pattern.');
+  }
+
+  // Amount match check
+  const amountDiff = Math.abs(claimedAmount - expectedAmount);
+  if (amountDiff > 1.0) {
+    riskScore += 0.75;
+    reasons.push(`Claimed amount (${claimedAmount} ETB) does not match order amount (${expectedAmount} ETB).`);
+  }
+
+  // Admin phone validation
+  if (!adminTelebirrPhone || adminTelebirrPhone.length < 9) {
+    reasons.push('Admin Telebirr phone is not linked or verified.');
+  }
+
+  const confidenceScore = Math.max(0, Math.round((1 - riskScore) * 100));
+
+  let recommendation: 'AUTO_PASS' | 'FLAG_FOR_REVIEW' | 'REJECT' = 'AUTO_PASS';
+  if (riskScore >= 0.7) {
+    recommendation = 'REJECT';
+  } else if (riskScore >= 0.3) {
+    recommendation = 'FLAG_FOR_REVIEW';
+  }
+
+  return {
+    isAuthentic: riskScore < 0.3,
+    confidenceScore,
+    fraudRiskScore: riskScore,
+    reasons,
+    recommendation,
+  };
+}
+

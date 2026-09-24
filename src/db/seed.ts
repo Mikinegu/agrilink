@@ -19,6 +19,9 @@ import {
   orderItems,
   orderStatusHistory,
   payments,
+  paymentProofs,
+  platformPaymentEndpoints,
+  paymentProofSubmissions,
   deliveries,
   hubMovements,
   qualityInspections,
@@ -28,6 +31,9 @@ import {
   notifications,
   messages,
   auditLogs,
+  supportTickets,
+  userSurveys,
+  platformSettings,
 } from './schema.ts';
 import { sql } from 'drizzle-orm';
 
@@ -48,13 +54,19 @@ export async function seedDatabase(force = false) {
       await db.delete(auditLogs);
       await db.delete(messages);
       await db.delete(notifications);
+      await db.delete(userSurveys);
+      await db.delete(supportTickets);
+      await db.delete(platformSettings);
       await db.delete(reviews);
       await db.delete(quoteRequests);
       await db.delete(financeApplications);
       await db.delete(qualityInspections);
       await db.delete(deliveries);
       await db.delete(hubMovements);
+      await db.delete(paymentProofSubmissions);
+      await db.delete(paymentProofs);
       await db.delete(payments);
+      await db.delete(platformPaymentEndpoints);
       await db.delete(orderStatusHistory);
       await db.delete(orderItems);
       await db.delete(orders);
@@ -2160,6 +2172,329 @@ export async function seedDatabase(force = false) {
         status: 'OPERATIONAL',
       },
     });
+
+    // 13. SEED PLATFORM SETTINGS (Linking Telebirr 0961123330 & Autonomous AI Guardian)
+    await db.insert(platformSettings).values({
+      platformFeePercent: 2.0,
+      escrowHoldHours: 24,
+      minOrderAmountEtb: 500.0,
+      currency: 'ETB',
+      maintenanceMode: false,
+      supportPhone: '0961123330',
+      supportEmail: 'support@agrilink.et',
+      taxRatePercent: 0.0,
+      telebirrPhone: '0961123330',
+      telebirrAccountName: 'AgriLink Technologies PLC',
+      telebirrMerchantCode: '884920',
+      aiPaymentMode: 'AI_AUTOPILOT',
+      aiMinConfidence: 85.0,
+      aiMaxAutoReleaseEtb: 500000.0,
+      telebirrWebhookSecret: 'agrilink_telebirr_sec_991823',
+    });
+
+    // 14. SEED PLATFORM PAYMENT ENDPOINTS (Official Receiving Accounts)
+    await db.insert(platformPaymentEndpoints).values([
+      {
+        id: 'ep-tb-01',
+        rail: 'TELEBIRR_MANUAL',
+        accountOrMerchantName: 'AgriLink Technologies PLC',
+        accountNumber: '884920',
+        branchOrBankName: 'Ethio Telecom Merchant Shortcode',
+        instructionsEn: 'Transfer via Telebirr SuperApp or USSD *127# to merchant code 884920. Our AI Guardian verifies your 10-digit transaction ID in seconds.',
+        instructionsAm: 'በቴሌብር ሱፐር አፕ ወይም *127# የነጋዴ መለያ ቁጥር 884920 በመጠቀም ይክፈሉ። የክፍያ ማረጋገጫ ቁጥሩን ያስገቡ።',
+        isActive: true,
+      },
+      {
+        id: 'ep-cbe-02',
+        rail: 'CBE_MOBILE_BANKING',
+        accountOrMerchantName: 'AgriLink Escrow Vault',
+        accountNumber: '1000492819281',
+        branchOrBankName: 'Commercial Bank of Ethiopia - Finfinnee Branch',
+        instructionsEn: 'Transfer using CBE Birr or CBE Mobile Banking. Enter FT reference number upon payment.',
+        instructionsAm: 'በኢትዮጵያ ንግድ ባንክ ሞባይል ባንኪንግ ወይም ሲቢኢ ብር ወደ ሂሳብ ቁጥር 1000492819281 ያስተላልፉ።',
+        isActive: true,
+      },
+      {
+        id: 'ep-awash-03',
+        rail: 'AWASH_BIRR',
+        accountOrMerchantName: 'AgriLink Commercial Escrow',
+        accountNumber: '01320948109400',
+        branchOrBankName: 'Awash International Bank - Head Office Branch',
+        instructionsEn: 'Transfer via Awash Mobile Banking or Teller deposit. Copy the journal reference.',
+        instructionsAm: 'በአዋሽ ባንክ ሞባይል ወይም ቅርንጫፍ ወደ ሂሳብ ቁጥር 01320948109400 ገቢ ያድርጉ።',
+        isActive: true,
+      },
+      {
+        id: 'ep-boa-04',
+        rail: 'BANK_OF_ABYSSINIA',
+        accountOrMerchantName: 'AgriLink Escrow Vault',
+        accountNumber: '84928102',
+        branchOrBankName: 'Bank of Abyssinia - Bole Medhanialem Branch',
+        instructionsEn: 'Transfer using BoA Mobile App. Enter the reference number shown on the receipt.',
+        instructionsAm: 'በአቢሲንያ ባንክ ሞባይል መተግበሪያ ወደ ሂሳብ ቁጥር 84928102 ያስተላልፉ።',
+        isActive: true,
+      },
+    ]);
+
+    // 15. SEED FINANCE APPLICATIONS (Awash Bank Agricultural Credit Portfolio)
+    await db.insert(financeApplications).values([
+      {
+        farmerId: seededUsers[0].id, // Bekele Tadesse
+        institutionId: seededUsers[8].id, // Awash Bank
+        loanType: 'INPUT_FINANCING',
+        amountRequestedEtb: 150000,
+        approvedAmountEtb: 150000,
+        interestRatePercent: 12.5,
+        purpose: 'Solar-powered drip irrigation system and high-yield Roma Tomato seeds for Adama field',
+        farmId: 1,
+        targetCrop: 'Roma Processing Tomatoes',
+        expectedYieldTons: 18.5,
+        expectedRevenueEtb: 650000,
+        repaymentPeriodMonths: 12,
+        status: 'APPROVED',
+        reviewNotes: 'Verified with Fayda FIN 4829-1092-3841. Credit appraisal passed with 1.4x debt-service coverage ratio.',
+        disbursedAt: new Date(Date.now() - 3600000 * 48),
+      },
+      {
+        farmerId: seededUsers[1].id, // Chaltu Dibaba
+        institutionId: seededUsers[8].id,
+        loanType: 'EQUIPMENT_LEASE',
+        amountRequestedEtb: 280000,
+        approvedAmountEtb: 250000,
+        interestRatePercent: 13.0,
+        purpose: 'Multi-crop walking tractor and seed cleaning kit for Haricot bean harvest',
+        farmId: 2,
+        targetCrop: 'Export White Haricot Beans',
+        expectedYieldTons: 35.0,
+        expectedRevenueEtb: 1200000,
+        repaymentPeriodMonths: 18,
+        status: 'UNDER_REVIEW',
+        reviewNotes: 'Pending field GPS waypoint inspection from Adama Logistics Hub officer.',
+      },
+      {
+        farmerId: seededUsers[2].id, // Worku Haile
+        loanType: 'WORKING_CAPITAL',
+        amountRequestedEtb: 95000,
+        purpose: 'Harvest seasonal labor wages and specialized ventilated produce crates',
+        farmId: 3,
+        targetCrop: 'Highland Sergegna Teff',
+        expectedYieldTons: 12.0,
+        expectedRevenueEtb: 420000,
+        repaymentPeriodMonths: 6,
+        status: 'SUBMITTED',
+      },
+    ]);
+
+    // 16. SEED B2B BULK QUOTE REQUESTS
+    await db.insert(quoteRequests).values([
+      {
+        businessBuyerId: seededUsers[4].id, // Yonas Mulugeta
+        sellerId: seededUsers[0].id, // Bekele Tadesse
+        productId: 3, // Roma Tomatoes
+        productName: 'Roma Processing Tomatoes',
+        requestedQuantity: 5000,
+        unit: 'KG',
+        requestedGrade: 'Grade 1',
+        targetPriceEtb: 75,
+        offerPriceEtb: 78,
+        offerNotes: 'Freshly harvested Heinz hybrid grade-1 tomatoes. BRIX > 5.6 certified.',
+        deliveryDate: '2026-10-05',
+        deliveryLocation: 'Bole Bulbula Food Processing Plant, Addis Ababa',
+        status: 'OFFER_ACCEPTED',
+      },
+      {
+        businessBuyerId: seededUsers[4].id,
+        sellerId: seededUsers[1].id,
+        productId: 4,
+        productName: 'Export White Haricot Beans',
+        requestedQuantity: 12000,
+        unit: 'KG',
+        requestedGrade: 'Grade 1 Export',
+        targetPriceEtb: 92,
+        offerPriceEtb: 94,
+        offerNotes: 'Machine sorted and moisture tested < 11%. Staged at Wonji Hub.',
+        deliveryDate: '2026-10-12',
+        deliveryLocation: 'Modjo Dry Port Customs Terminal',
+        status: 'PENDING_SUPPLIER_OFFER',
+      },
+    ]);
+
+    // 17. SEED QUALITY CONTROL & INSPECTIONS
+    await db.insert(qualityInspections).values([
+      {
+        productId: 1, // Magna White Teff
+        batchNumber: 'LOT-TEFF-2026-001',
+        inspectorId: seededUsers[9].id,
+        inspectorName: seededUsers[9].fullName,
+        inspectionDate: '2026-09-20',
+        gradeAssigned: 'Grade 1 Export',
+        moistureContentPercent: 10.2,
+        defectRatePercent: 0.1,
+        appearanceScore: 98,
+        status: 'PASSED',
+        reportSummary: 'Complies with Ethiopian Standards Agency ESA-2025 Grade 1 export classification.',
+        certificateUrl: 'https://cert.agrilink.et/quality/LOT-TEFF-2026-001.pdf',
+      },
+      {
+        productId: 3, // Roma Tomatoes
+        batchNumber: 'LOT-ROMA-2026-088',
+        inspectorId: seededUsers[9].id,
+        inspectorName: seededUsers[9].fullName,
+        inspectionDate: '2026-09-21',
+        gradeAssigned: 'Grade 1 Processing',
+        moistureContentPercent: 88.5,
+        defectRatePercent: 2.1,
+        appearanceScore: 94,
+        status: 'PASSED',
+        reportSummary: 'Optimal ripeness for industrial tomato paste production. Firm skin and vibrant coloration.',
+        certificateUrl: 'https://cert.agrilink.et/quality/LOT-ROMA-2026-088.pdf',
+      },
+    ]);
+
+    // 18. SEED HUB MOVEMENTS
+    await db.insert(hubMovements).values([
+      {
+        hubId: 1,
+        orderId: createdOrd1.id,
+        movementType: 'INBOUND_RECEIVE',
+        quantityUnits: 100,
+        notes: 'Clean intake from Adaa Cooperative Truck. Ambient temperature 19C.',
+        operatorId: seededUsers[9].id,
+      },
+      {
+        hubId: 1,
+        orderId: createdOrd1.id,
+        movementType: 'CROSS_DOCK',
+        quantityUnits: 100,
+        notes: 'Palletized and handed over to Carrier Dawit Alemu for express corridor dispatch.',
+        operatorId: seededUsers[9].id,
+      },
+    ]);
+
+    // 19. SEED VERIFIED PRODUCT REVIEWS
+    await db.insert(reviews).values([
+      {
+        orderId: createdOrd1.id,
+        reviewerId: seededUsers[4].id,
+        targetType: 'PRODUCT',
+        targetId: 1,
+        rating: 5.0,
+        title: 'Superb Magna Teff quality and fast logistics!',
+        comment: 'Grain purity exceeded expectations with zero grit. Delivered right on schedule to our Addis bakery.',
+        isVerifiedPurchase: true,
+      },
+      {
+        orderId: createdOrd4.id,
+        reviewerId: seededUsers[5].id,
+        targetType: 'PRODUCT',
+        targetId: 2,
+        rating: 5.0,
+        title: 'Authentic Yirgacheffe Washed Micro-Lot',
+        comment: 'Exceptional floral bergamot fragrance. Cups at 88+ points in our specialty lab.',
+        isVerifiedPurchase: true,
+      },
+    ]);
+
+    // 20. SEED DIRECT MESSAGES
+    await db.insert(messages).values([
+      {
+        conversationId: `CONV-${seededUsers[5].id}-${seededUsers[0].id}`,
+        senderId: seededUsers[5].id,
+        recipientId: seededUsers[0].id,
+        senderName: seededUsers[5].fullName,
+        senderRole: 'BUYER',
+        content: 'Selam Ato Bekele, are the Roma Tomatoes ready for morning pickup from Wonji Hub?',
+        isRead: true,
+      },
+      {
+        conversationId: `CONV-${seededUsers[5].id}-${seededUsers[0].id}`,
+        senderId: seededUsers[0].id,
+        recipientId: seededUsers[5].id,
+        senderName: seededUsers[0].fullName,
+        senderRole: 'FARMER',
+        content: 'Selam W/ro Sara! Yes, 50 quintals are sorted, graded, and staged in cold room 2. Ready anytime.',
+        isRead: true,
+      },
+    ]);
+
+    // 21. SEED SUPPORT TICKETS & DISPUTES
+    await db.insert(supportTickets).values([
+      {
+        ticketNumber: 'TICK-2026-1042',
+        userId: seededUsers[5].id,
+        category: 'PAYMENT',
+        subject: 'Telebirr SMS confirmation auto-verification',
+        description: 'Payment made via Telebirr merchant 884920. Requested AI verification confirmation.',
+        priority: 'HIGH',
+        status: 'RESOLVED',
+        assignedAdminId: seededUsers[9].id,
+        resolutionNotes: 'Autonomous AI Payment Guardian cross-checked SMS journal TX-TB-99120 and confirmed order.',
+      },
+      {
+        ticketNumber: 'TICK-2026-1088',
+        userId: seededUsers[1].id,
+        category: 'QUALITY_ISSUE',
+        subject: 'Moisture calibration sensor assistance',
+        description: 'Requesting recalibration for grain moisture meter at Shashemene Regional Aggregation Hub.',
+        priority: 'MEDIUM',
+        status: 'IN_PROGRESS',
+        assignedAdminId: seededUsers[9].id,
+        resolutionNotes: 'Technician dispatched with reference calibration sample.',
+      },
+      {
+        ticketNumber: 'TICK-2026-1120',
+        userId: seededUsers[4].id,
+        category: 'ORDER_DISPUTE',
+        subject: 'Truck waypoint transit customs clearance',
+        description: 'Need Modjo Dry Port customs seal documentation before carrier departure.',
+        priority: 'URGENT',
+        status: 'OPEN',
+      },
+    ]);
+
+    // 22. SEED USER SATISFACTION SURVEYS
+    await db.insert(userSurveys).values([
+      {
+        surveyId: 'SURV-2026-001',
+        userId: seededUsers[5].id,
+        userEmail: seededUsers[5].email,
+        userRole: 'BUYER',
+        satisfactionRating: 'Completely satisfied',
+        feedbackText: 'The Telebirr linking with AI Guardian makes buying directly from Ethiopian farmers effortless and safe.',
+      },
+      {
+        surveyId: 'SURV-2026-002',
+        userId: seededUsers[0].id,
+        userEmail: seededUsers[0].email,
+        userRole: 'FARMER',
+        satisfactionRating: 'Completely satisfied',
+        feedbackText: 'Getting guaranteed escrow payment without broker cuts has increased our family farm income by 35%.',
+      },
+      {
+        surveyId: 'SURV-2026-003',
+        userId: seededUsers[7].id,
+        userEmail: seededUsers[7].email,
+        userRole: 'DRIVER',
+        satisfactionRating: 'Satisfied',
+        feedbackText: 'Waypoint tracking and automatic load assignment save hours of empty backhaul driving.',
+      },
+    ]);
+
+    // 23. SEED ACTIVE CART & CART ITEMS
+    const seededCart = await db.insert(carts).values({
+      userId: seededUsers[5].id,
+    }).returning();
+    if (seededCart[0]) {
+      await db.insert(cartItems).values([
+        {
+          cartId: seededCart[0].id,
+          productId: 1,
+          quantity: 25,
+          unitPriceEtb: 145,
+          notes: 'Adaa Magna Grade 1 Teff for retail packaging',
+        },
+      ]);
+    }
 
     console.log('AgriLink database seeded successfully with authentic Ethiopian agricultural products, orders, escrow payments, and live logistics!');
   } catch (error) {

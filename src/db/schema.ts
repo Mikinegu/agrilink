@@ -604,7 +604,7 @@ export const reviews = pgTable('reviews', {
 export const messages = pgTable('messages', {
   id: serial('id').primaryKey(),
   conversationId: text('conversation_id').notNull(),
-  senderId: integer('senderId').references(() => users.id).notNull(),
+  senderId: integer('sender_id').references(() => users.id).notNull(),
   recipientId: integer('recipient_id').references(() => users.id).notNull(),
   senderName: text('sender_name').notNull(),
   senderRole: text('sender_role').notNull(),
@@ -660,7 +660,21 @@ export const supportTickets = pgTable('support_tickets', {
 });
 
 // ==========================================
-// 18. PLATFORM SETTINGS
+// 18. USER SATISFACTION SURVEYS
+// ==========================================
+export const userSurveys = pgTable('user_surveys', {
+  id: serial('id').primaryKey(),
+  surveyId: text('survey_id').notNull().unique(),
+  userId: integer('user_id').references(() => users.id),
+  userEmail: text('user_email'),
+  userRole: text('user_role').default('GENERAL'),
+  satisfactionRating: text('satisfaction_rating').notNull(),
+  feedbackText: text('feedback_text'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ==========================================
+// 19. PLATFORM SETTINGS
 // ==========================================
 export const platformSettings = pgTable('platform_settings', {
   id: serial('id').primaryKey(),
@@ -669,9 +683,16 @@ export const platformSettings = pgTable('platform_settings', {
   minOrderAmountEtb: doublePrecision('min_order_amount_etb').default(500.0),
   currency: text('currency').default('ETB'),
   maintenanceMode: boolean('maintenance_mode').default(false),
-  supportPhone: text('support_phone').default('+251 91 100 2244'),
+  supportPhone: text('support_phone').default('0961123330'),
   supportEmail: text('support_email').default('support@agrilink.et'),
   taxRatePercent: doublePrecision('tax_rate_percent').default(0.0),
+  telebirrPhone: text('telebirr_phone').default('0961123330'),
+  telebirrAccountName: text('telebirr_account_name').default('AgriLink Technologies PLC'),
+  telebirrMerchantCode: text('telebirr_merchant_code').default('884920'),
+  aiPaymentMode: text('ai_payment_mode').default('AI_AUTOPILOT'),
+  aiMinConfidence: doublePrecision('ai_min_confidence').default(85.0),
+  aiMaxAutoReleaseEtb: doublePrecision('ai_max_auto_release_etb').default(500000.0),
+  telebirrWebhookSecret: text('telebirr_webhook_secret').default('agrilink_telebirr_sec_991823'),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
@@ -787,3 +808,92 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  order: one(orders, {
+    fields: [payments.orderId],
+    references: [orders.id],
+  }),
+  user: one(users, {
+    fields: [payments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const deliveriesRelations = relations(deliveries, ({ one }) => ({
+  order: one(orders, {
+    fields: [deliveries.orderId],
+    references: [orders.id],
+  }),
+  driver: one(drivers, {
+    fields: [deliveries.driverId],
+    references: [drivers.id],
+  }),
+}));
+
+export const financeApplicationsRelations = relations(financeApplications, ({ one }) => ({
+  farmer: one(users, {
+    fields: [financeApplications.farmerId],
+    references: [users.id],
+  }),
+  institution: one(users, {
+    fields: [financeApplications.institutionId],
+    references: [users.id],
+  }),
+}));
+
+export const quoteRequestsRelations = relations(quoteRequests, ({ one }) => ({
+  buyer: one(users, {
+    fields: [quoteRequests.businessBuyerId],
+    references: [users.id],
+  }),
+  seller: one(users, {
+    fields: [quoteRequests.sellerId],
+    references: [users.id],
+  }),
+  product: one(products, {
+    fields: [quoteRequests.productId],
+    references: [products.id],
+  }),
+}));
+
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  reviewer: one(users, {
+    fields: [reviews.reviewerId],
+    references: [users.id],
+  }),
+  order: one(orders, {
+    fields: [reviews.orderId],
+    references: [orders.id],
+  }),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+  }),
+  recipient: one(users, {
+    fields: [messages.recipientId],
+    references: [users.id],
+  }),
+}));
+
+export const supportTicketsRelations = relations(supportTickets, ({ one }) => ({
+  user: one(users, {
+    fields: [supportTickets.userId],
+    references: [users.id],
+  }),
+  assignedAdmin: one(users, {
+    fields: [supportTickets.assignedAdminId],
+    references: [users.id],
+  }),
+}));
+
+export const userSurveysRelations = relations(userSurveys, ({ one }) => ({
+  user: one(users, {
+    fields: [userSurveys.userId],
+    references: [users.id],
+  }),
+}));
+
